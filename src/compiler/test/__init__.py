@@ -1,1 +1,0 @@
-from QuantumWalkOptimizer.src import *
