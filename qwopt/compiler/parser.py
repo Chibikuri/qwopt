@@ -25,7 +25,6 @@ class GraphParser:
         else:
             # FIXME add connection list
             raise ValueError('Invalid format of graph')
-        
         if optimize:
             self.graph_opt
 
@@ -34,6 +33,9 @@ class GraphParser:
 
     def n_connections(self):
         return np.sum(self.graph, axis=0)
+    
+    def graph(self):
+        return self.graph
 
     def n_partitions(self):
         col_sum = np.sum(self.graph, axis=0)
@@ -67,6 +69,7 @@ class GraphParser:
             fgraph[cv[0], :] = tgraph[cv[1], :]
             fgraph[cv[1], :] = tgraph[cv[0], :]
         self.graph = fgraph
+        print('fgraph', fgraph)
         # return for test
         return self.graph
         
@@ -79,17 +82,3 @@ class GraphParser:
 
     def reference_state(self):
         pass
-
-
-# if __name__ == '__main__':
-#     # matrix = np.array([[0, 1, 1, 0],
-#     #                    [0, 0, 1, 1],
-#     #                    [0, 0, 0, 1],
-#     #                    [0, 1, 1, 0]])
-#     matrix = np.array([[0, 1, 1, 0, 0, 1],
-#                        [0, 0, 1, 1, 1, 1],
-#                        [0, 0, 0, 1, 0, 0],
-#                        [0, 1, 1, 0, 1, 0],
-#                        [0, 1, 1, 0, 1, 0],
-#                        [0, 1, 1, 0, 1, 0]])
-#     gparser = GraphParser(matrix).matrix_opt()

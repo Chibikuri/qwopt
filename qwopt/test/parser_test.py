@@ -26,7 +26,7 @@ class GraphParserTest(unittest.TestCase):
                     [1, 1, 1, 1]] 
         gparser = GraphParser(test_mat)
         n_partition = gparser.n_partitions()
-        self.assertEqual(n_partition, 3)
+        self.assertEqual(n_partition, 3, 'number of partitions')
 
     def test_n_connections(self):
         test_mat = [[0, 0, 1, 1],
@@ -36,7 +36,7 @@ class GraphParserTest(unittest.TestCase):
         gparser = GraphParser(test_mat)
         gpartition = gparser.n_connections()
         bolmx = gpartition == [3, 2, 3, 4]
-        self.assertEqual(all(bolmx), True)
+        self.assertEqual(all(bolmx), True, 'number of connections')
 
     def test_matrix_opt(self):
         test_mat = [[0, 1, 1, 1],
@@ -51,7 +51,7 @@ class GraphParserTest(unittest.TestCase):
                             [0, 0, 1, 0]])
         bolmx = gmatrix == cmatrix
         judger = [all(i) for i in bolmx]
-        self.assertEqual(all(judger), True)
+        self.assertEqual(all(judger), True, 'matrix optimization')
 
 
 if __name__ == '__main__':
