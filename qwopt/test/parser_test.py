@@ -49,6 +49,12 @@ class GraphParserTest(unittest.TestCase):
                             [0, 0, 0, 1],
                             [0, 1, 0, 1],
                             [0, 0, 1, 0]])
+        # test_mat2 = np.array([[0, 1, 0, 0, 1, 0],
+        #                     [0, 0, 0, 1, 1, 0],
+        #                     [0, 0, 0, 1, 1, 1],
+        #                     [0, 1, 1, 0, 0, 0],
+        #                     [0, 1, 0, 0, 0, 1],
+        #                     [0, 1, 0, 0, 1, 0]])
         bolmx = gmatrix == cmatrix
         judger = [all(i) for i in bolmx]
         self.assertEqual(all(judger), True, 'matrix optimization')

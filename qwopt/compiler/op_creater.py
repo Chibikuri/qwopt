@@ -14,15 +14,16 @@ class OperationCreator:
     all functions return instruction sets
     which can be added to circuit directly
     '''
-    def __init__(self, graph, basis=0, optimize=True):
-        self.parser = GraphParser(graph)
+    def __init__(self, graph, prob_tran, basis=0, optimize=True):
+        self.parser = GraphParser(graph, prob_tran)
+        self.graph = self.parser.graph
         self.dim = self.parser.dim()
         self.q_size = self._qubit_size(len(self.parser)) 
         self.basis_state = basis
 
     def T_operation(self):
-        print(self.graph)
         ref_states = self.parser.reference_state()
+        print(ref_states)
 
     def Tdg_operation(self):
         pass
@@ -70,11 +71,23 @@ class OperationCreator:
         return 2*qsize
 
 
+def prob_transition(graph):
+    pmatrix = np.zeros(graph.shape)
+    indegrees = np.sum(graph, axis=0)
+    for ix, indeg in enumerate(indegrees):
+        if indeg == 0:
+            pmatrix[:, ix] = graph[:, ix]
+        else:
+            pmatrix[:, ix] = graph[:, ix]/indeg
+    return pmatrix
+
+
 if __name__ == '__main__':
     graph = np.array([[0, 1, 0, 0],
                       [0, 0, 0, 1],
                       [0, 0, 0, 1],
                       [0, 1, 1, 0]])
-    opcreator = OperationCreator(graph)
+    pb = prob_transition(graph)
+    opcreator = OperationCreator(graph, pb)
     opcreator.D_operation()
     opcreator.T_operation()
