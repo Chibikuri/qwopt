@@ -22,8 +22,79 @@ class OperationCreator:
         self.basis_state = basis
 
     def T_operation(self):
-        ref_states = self.parser.reference_state()
-        print(ref_states)
+        ref_states, ref_index = self.parser.reference_state()
+        ref_index.append(len(self.graph))
+        print(self.graph)
+        T_instructions = []
+        for irf, rf in enumerate(ref_index[:-1]):
+            temp = []
+            for i in range(rf, ref_index[irf+1]):
+                #  control from i and target from bins
+                temp.append(self.graph[:, i])
+            Ti_op = self._bin_converter(temp, rf)
+            if Ti_op is not None:
+                T_instructions.append(Ti_op)
+        return T_instructions
+
+    def _bin_converter(self, states, control):
+        if len(states) == 1:
+            # if the length of state is 1, we don't need to move
+            # with T operation
+            pass
+        else:
+            ref_state = states[0]
+            for st in states[1:]:
+                conv = self._take_bins(ref_state, st)
+                # print(control, conv)
+            target = [self._target_hm(cnv[0], cnv[1])[0] for cnv in conv]
+            control = list(self._binary_formatter(control, self.q_size//2))
+            addi_control = [self._target_hm(cnv[0], cnv[1])[1] for cnv in conv]
+            # create instruction
+            q_cont = QuantumRegister(self.q_size//2)
+            q_targ = QuantumRegister(self.q_size//2)
+            ancilla = QuantumRegister(self.q_size//2)
+            qc = QuantumCircuit(q_cont, q_targ, ancilla, name='T%s'%control)
+            for act, tgt in zip(addi_control, target):
+                if act == []:
+                    pass
+                else:
+                    for ic, cont in enumerate(control):
+                        if cont == '1':
+                            qc.x(q_cont[ic])
+                    for tg in tgt:
+                        qc.mct([*q_cont, *[q_targ[ac] for ac in act]], q_targ[tg], ancilla)
+                    for ic, cont in enumerate(control):
+                        if cont == '1':
+                            qc.x(q_cont[ic])
+                    return qc.to_instruction()
+
+    def _target_hm(self, st1, st2):
+        # print(st1, st2)
+        hm = []
+        # additional control operations
+        ct_add = []
+        if st1 != st2:
+            for ind, s in enumerate(zip(st1, st2)):
+                if s[0] != s[1]:
+                    hm.append(ind)
+                else:
+                    ct_add.append(ind)
+        return hm, ct_add
+
+    def _take_bins(self, ref_state, other):
+        converter = []
+        for irf, rf in enumerate(ref_state):
+            if rf == 1:
+                converter.append([self._binary_formatter(irf, self.q_size//2)])
+        ct = 0
+        for iot, ot in enumerate(other):
+            if ot == 1:
+                converter[ct].append(self._binary_formatter(iot, self.q_size//2))
+                ct += 1
+        return converter
+    
+    def _binary_formatter(self, n, basis):
+        return format(n, '0%sb' % str(basis))
 
     def Tdg_operation(self):
         pass
@@ -83,10 +154,24 @@ def prob_transition(graph):
 
 
 if __name__ == '__main__':
-    graph = np.array([[0, 1, 0, 0],
-                      [0, 0, 0, 1],
-                      [0, 0, 0, 1],
-                      [0, 1, 1, 0]])
+    # graph = np.array([[0, 1, 0, 0],
+    #                   [0, 0, 0, 1],
+    #                   [0, 0, 0, 1],
+    #                   [0, 1, 1, 0]])
+    # graph = np.array([[0, 1, 0, 0, 1, 0],
+    #                   [0, 0, 0, 1, 1, 0],
+    #                   [0, 0, 0, 1, 1, 1],
+    #                   [0, 1, 1, 0, 0, 0],
+    #                   [0, 1, 0, 0, 0, 1],
+    #                   [0, 1, 0, 0, 1, 0])
+    graph = np.array([[0, 1, 0, 0, 1, 0, 0, 1],
+                      [0, 0, 0, 1, 1, 0, 1, 0],
+                      [0, 0, 0, 1, 1, 1, 0, 1],
+                      [0, 1, 1, 0, 0, 0, 1, 0],
+                      [0, 1, 0, 0, 0, 1, 0, 1],
+                      [0, 1, 0, 0, 1, 0, 1, 1],
+                      [0, 1, 0, 0, 1, 0, 0, 1],
+                      [0, 1, 0, 0, 1, 0, 1, 0]])
     pb = prob_transition(graph)
     opcreator = OperationCreator(graph, pb)
     opcreator.D_operation()

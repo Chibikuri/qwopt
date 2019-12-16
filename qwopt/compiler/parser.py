@@ -98,7 +98,7 @@ class GraphParser:
             c_types = set(map(int, n_connections))
             ref_index = [np.where(n_connections == c)[0][0] for c in c_types]
             ref_state = [self.ptrans[:, i] for i in ref_index]
-            return ref_state
+            return ref_state, ref_index
         else:
             # FIXME
             raise Exception('No optimization is not permited yet')
