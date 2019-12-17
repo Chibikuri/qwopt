@@ -25,7 +25,6 @@ class OperationCreator:
     def T_operation(self):
         ref_states, ref_index = self.parser.reference_state()
         ref_index.append(len(self.graph))
-        print(self.graph)
         T_instructions = []
         for irf, rf in enumerate(ref_index[:-1]):
             temp = []
@@ -37,7 +36,7 @@ class OperationCreator:
                 T_instructions.append(Ti_op)
         return T_instructions
 
-    def _bin_converter(self, states, control):
+    def _bin_converter(self, states, cont):
         if len(states) == 1:
             # if the length of state is 1, we don't need to move
             # with T operation
@@ -48,13 +47,13 @@ class OperationCreator:
                 conv = self._take_bins(ref_state, st)
                 # print(control, conv)
             target = [self._target_hm(cnv[0], cnv[1])[0] for cnv in conv]
-            control = list(self._binary_formatter(control, self.q_size//2))
+            control = list(self._binary_formatter(cont, self.q_size//2))
             addi_control = [self._target_hm(cnv[0], cnv[1])[1] for cnv in conv]
             # create instruction
             q_cont = QuantumRegister(self.q_size//2)
             q_targ = QuantumRegister(self.q_size//2)
             ancilla = QuantumRegister(self.q_size//2)
-            qc = QuantumCircuit(q_cont, q_targ, ancilla, name='T%s'%control)
+            qc = QuantumCircuit(q_cont, q_targ, ancilla, name='T%s' % cont)
             for act, tgt in zip(addi_control, target):
                 if act == []:
                     pass
@@ -182,12 +181,6 @@ class OperationCreator:
             rotations = [-i for i in rotations]
         return rotations
 
-    def Kdg_operation(self):
-        '''
-        convert reference state to basis state
-        '''
-        pass
-
     def D_operation(self, n_anilla=0, mode='basic', barrier=False):
         '''
         This operation is for flipping phase of specific basis state
@@ -236,27 +229,27 @@ def prob_transition(graph):
     return pmatrix
 
 
-if __name__ == '__main__':
-    # graph = np.array([[0, 1, 0, 0],
-    #                   [0, 0, 0, 1],
-    #                   [0, 0, 0, 1],
-    #                   [0, 1, 1, 0]])
-    # graph = np.array([[0, 1, 0, 0, 1, 0],
-    #                   [0, 0, 0, 1, 1, 0],
-    #                   [0, 0, 0, 1, 1, 1],
-    #                   [0, 1, 1, 0, 0, 0],
-    #                   [0, 1, 0, 0, 0, 1],
-    #                   [0, 1, 0, 0, 1, 0])
-    graph = np.array([[0, 1, 0, 0, 1, 0, 0, 1],
-                      [0, 0, 0, 1, 1, 0, 1, 0],
-                      [0, 0, 0, 1, 0, 1, 0, 1],
-                      [0, 1, 0, 0, 0, 0, 1, 0],
-                      [0, 1, 0, 0, 0, 1, 0, 1],
-                      [0, 1, 0, 0, 1, 0, 1, 1],
-                      [0, 1, 0, 0, 1, 0, 0, 1],
-                      [0, 1, 0, 0, 1, 0, 1, 0]])
-    pb = prob_transition(graph)
-    opcreator = OperationCreator(graph, pb)
-    opcreator.D_operation()
-    opcreator.T_operation()
-    opcreator.K_operation()
+# if __name__ == '__main__':
+#     # graph = np.array([[0, 1, 0, 0],
+#     #                   [0, 0, 0, 1],
+#     #                   [0, 0, 0, 1],
+#     #                   [0, 1, 1, 0]])
+#     # graph = np.array([[0, 1, 0, 0, 1, 0],
+#     #                   [0, 0, 0, 1, 1, 0],
+#     #                   [0, 0, 0, 1, 1, 1],
+#     #                   [0, 1, 1, 0, 0, 0],
+#     #                   [0, 1, 0, 0, 0, 1],
+#     #                   [0, 1, 0, 0, 1, 0])
+#     graph = np.array([[0, 1, 0, 0, 1, 0, 0, 1],
+#                       [0, 0, 0, 1, 1, 0, 1, 0],
+#                       [0, 0, 0, 1, 0, 1, 0, 1],
+#                       [0, 1, 0, 0, 0, 0, 1, 0],
+#                       [0, 1, 0, 0, 0, 1, 0, 1],
+#                       [0, 1, 0, 0, 1, 0, 1, 1],
+#                       [0, 1, 0, 0, 1, 0, 0, 1],
+#                       [0, 1, 0, 0, 1, 0, 1, 0]])
+#     pb = prob_transition(graph)
+#     opcreator = OperationCreator(graph, pb)
+#     opcreator.D_operation()
+#     opcreator.T_operation()
+#     opcreator.K_operation()
