@@ -1,6 +1,7 @@
 import numpy as np
 from parser import GraphParser
 from qiskit import QuantumRegister, QuantumCircuit
+from numpy import pi
 
 
 class OperationCreator:
@@ -92,17 +93,99 @@ class OperationCreator:
                 converter[ct].append(self._binary_formatter(iot, self.q_size//2))
                 ct += 1
         return converter
-    
-    def _binary_formatter(self, n, basis):
+
+    @staticmethod
+    def _binary_formatter(n, basis):
         return format(n, '0%sb' % str(basis))
 
-    def Tdg_operation(self):
-        pass
+    def K_operation(self, dagger=False, ancilla=True):
+        '''
+        create reference states from basis state
+        K|b> = |phi_r> 
+        '''
+        refs, refid = self.parser.reference_state()
+        rotations = self._get_rotaions(refs, dagger)
+        # create Ki operations
+        qcont = QuantumRegister(self.q_size//2)
+        qtarg = QuantumRegister(self.q_size//2)
+        if ancilla:
+            anc = QuantumRegister(self.q_size//2)
+            qc = QuantumCircuit(qcont, qtarg, anc, name='Kop_anc') 
+        else:
+            anc = None
+            qc = QuantumCircuit(qcont, qtarg, name='Kop')
+        ct = 0
+        for i in range(self.dim[0]):
+            ib = list(self._binary_formatter(i, self.q_size//2))
+            if i in refid:
+                rfrot = rotations[ct]
+                ct += 1
+            for ibx, bx in enumerate(ib):
+                if bx == '0':
+                    qc.x(qcont[ibx])
+            qc = self._constructor(qc, rfrot, qcont, qtarg, anc)
+            for ibx, bx in enumerate(ib):
+                if bx == '0':
+                    qc.x(qcont[ibx])
+        K_instruction = qc.to_instruction()
+        return K_instruction
 
-    def K_operation(self):
-        pass
+    def _constructor(self, circuit, rotations, cont, targ, anc):
+        # TODO check
+        if len(rotations) == 1:
+            circuit.mcry(rotations[0], cont, targ[0], anc)
+            return circuit
+        elif len(rotations) == 2:
+            circuit.mcry(rotations[0], cont, targ[0], anc)
+            circuit.x(targ[0])
+            circuit.mcry(rotations[1], [*cont, targ[0]], targ[1], anc)
+            circuit.x(targ[0])
+            return circuit
+        else:
+            circuit.mcry(rotations[0], cont, targ[0], anc)
+            circuit.x(targ[0])
+            circuit.mcry(rotations[1], [*cont, targ[0]], targ[1], anc)
+            circuit.x(targ[0])
+            for irt, rt in enumerate(rotations[2:]):
+                # insted of ccc...hhh...
+                for tg in targ[irt+1:]:
+                    circuit.mcry(pi/2, [*cont, *targ[:irt+1]], tg, anc)
+                circuit.x(targ[:irt+2])
+                circuit.mcry(rt, [*cont, *targ[:irt+2]], targ[irt+2], anc)
+                circuit.x(targ[:irt+2])
+            return circuit
+
+    def _get_rotaions(self, state, dagger):
+        rotations = []
+        if self.basis_state != 0:
+            raise Exception('Under construction')
+        else:
+            for st in state:
+                rt = self._rotation(st, [], dagger)
+                rotations.append(rt)
+        return rotations
+
+    def _rotation(self, state, rotations, dagger):
+        lst = len(state)
+        if lst == 2:
+            if sum(state) != 0:
+                rotations.append(2*np.arccos(np.sqrt(state[0]/sum(state))))
+            else:
+                rotations.append(0)
+        else:
+            if sum(state) != 0:
+                rotations.append(2*np.arccos(np.sqrt(sum(state[:int(lst/2)])/sum(state))))
+            else:
+                rotations.append(0)
+            self._rotation(state[:int(lst/2)], rotations, dagger)
+        if dagger:
+            rotations = [-i for i in rotations]
+        return rotations
 
     def Kdg_operation(self):
+        '''
+        convert reference state to basis state
+        '''
         pass
 
     def D_operation(self, n_anilla=0, mode='basic', barrier=False):
@@ -111,7 +194,7 @@ class OperationCreator:
         '''
         # describe basis state as a binary number
         nq = int(self.q_size/2)
-        basis_bin = list(format(self.basis_state, '0%sb' % str(nq)))
+        basis_bin = list(self._binary_formatter(self.basis_state, nq))
         # create operation
         qr = QuantumRegister(nq)
         Dop = QuantumCircuit(qr, name='D')
@@ -166,8 +249,8 @@ if __name__ == '__main__':
     #                   [0, 1, 0, 0, 1, 0])
     graph = np.array([[0, 1, 0, 0, 1, 0, 0, 1],
                       [0, 0, 0, 1, 1, 0, 1, 0],
-                      [0, 0, 0, 1, 1, 1, 0, 1],
-                      [0, 1, 1, 0, 0, 0, 1, 0],
+                      [0, 0, 0, 1, 0, 1, 0, 1],
+                      [0, 1, 0, 0, 0, 0, 1, 0],
                       [0, 1, 0, 0, 0, 1, 0, 1],
                       [0, 1, 0, 0, 1, 0, 1, 1],
                       [0, 1, 0, 0, 1, 0, 0, 1],
@@ -176,3 +259,4 @@ if __name__ == '__main__':
     opcreator = OperationCreator(graph, pb)
     opcreator.D_operation()
     opcreator.T_operation()
+    opcreator.K_operation()
