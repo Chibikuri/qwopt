@@ -18,6 +18,7 @@ class OperationCreator:
     def __init__(self, graph, prob_tran, basis=0, optimize=True):
         self.parser = GraphParser(graph, prob_tran)
         self.graph = self.parser.graph
+        self.ptran = self.parser.ptrans
         self.dim = self.parser.dim()
         self.q_size = self._qubit_size(len(self.parser)) 
         self.basis_state = basis
