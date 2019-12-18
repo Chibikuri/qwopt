@@ -14,7 +14,10 @@ class GraphParserTest(unittest.TestCase):
         self.assertEqual(gdim, (4, 4), 'Unexpected')
 
     def test_len(self):
-        test_mat = [[1, 1, 1, 1], [1, 1, 1, 1], [1, 1, 1, 1], [1, 1, 1, 1]]
+        test_mat = [[1, 1, 1, 1],
+                    [1, 1, 1, 1],
+                    [1, 1, 1, 1],
+                    [1, 1, 1, 1]]
         gparser = GraphParser(test_mat)
         glen = len(gparser)
         self.assertEqual(glen, 4, 'Unexpected')

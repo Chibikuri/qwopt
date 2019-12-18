@@ -69,7 +69,6 @@ class GraphParser:
         # FIXME looking for more efficient way
         tgraph = np.zeros(self.dim())
         fgraph = np.zeros(self.dim())
-        # FIXME 
         pgraph = np.zeros(self.dim())
         qgraph = np.zeros(self.dim())
 
@@ -100,29 +99,5 @@ class GraphParser:
             ref_state = [self.ptrans[:, i] for i in ref_index]
             return ref_state, ref_index
         else:
-            # FIXME
+            # TODO
             raise Exception('No optimization is not permited yet')
-
-
-def prob_transition(graph):
-    pmatrix = np.zeros(graph.shape)
-    indegrees = np.sum(graph, axis=0)
-    for ix, indeg in enumerate(indegrees):
-        if indeg == 0:
-            pmatrix[:, ix] = graph[:, ix]
-        else:
-            pmatrix[:, ix] = graph[:, ix]/indeg
-    return pmatrix
-
-
-# if __name__ == '__main__':
-#     graph = np.array([[0, 1, 0, 0, 1, 0],
-#                       [0, 0, 0, 1, 1, 0],
-#                       [0, 0, 0, 1, 1, 1],
-#                       [0, 1, 1, 0, 0, 0],
-#                       [0, 1, 0, 0, 0, 1],
-#                       [0, 1, 0, 0, 1, 0]])
-#     pb = prob_transition(graph)
-#     parser = GraphParser(graph, pb)
-    # print(parser.graph)
-    # print(parser.ptrans)

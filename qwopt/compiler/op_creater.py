@@ -32,55 +32,64 @@ class OperationCreator:
             for i in range(rf, ref_index[irf+1]):
                 #  control from i and target from bins
                 temp.append(self.graph[:, i])
-            Ti_op = self._bin_converter(temp, rf)
+            Ti_op = self._bin_converter(temp, range(rf, ref_index[irf+1]))
             if Ti_op is not None:
                 T_instructions.append(Ti_op)
+        # print(T_instructions)
         return T_instructions
 
-    def _bin_converter(self, states, cont):
+    # TODO more understandable name
+    def _bin_converter(self, states, cont, ancilla=True):
         if len(states) == 1:
             # if the length of state is 1, we don't need to move
             # with T operation
             pass
         else:
             ref_state = states[0]
-            for st in states[1:]:
-                conv = self._take_bins(ref_state, st)
-                # print(control, conv)
-            target = [self._target_hm(cnv[0], cnv[1])[0] for cnv in conv]
-            control = list(self._binary_formatter(cont, self.q_size//2))
-            addi_control = [self._target_hm(cnv[0], cnv[1])[1] for cnv in conv]
-            # create instruction
-            q_cont = QuantumRegister(self.q_size//2)
-            q_targ = QuantumRegister(self.q_size//2)
-            ancilla = QuantumRegister(self.q_size//2)
-            qc = QuantumCircuit(q_cont, q_targ, ancilla, name='T%s' % cont)
-            for act, tgt in zip(addi_control, target):
-                if act == []:
-                    pass
+            # make correspondence table
+            convs = [self._take_bins(ref_state, st) for st in states[1:]]
+            if convs == [[]]:
+                # if all table elements are the same value, 
+                # we don't have to apply
+                return None
+            else:
+                # TODO
+                # here we have to optimize additional target
+                ctable = self._addi_analysis(convs)
+                target = [self._target_hm(cnv) for cnv in ctable]
+                
+                control = [list(self._binary_formatter(ct, self.q_size//2))
+                           for ct in cont]
+                print(control[1:], target)
+                # create instruction
+                q_cont = QuantumRegister(self.q_size//2)
+                q_targ = QuantumRegister(self.q_size//2)
+                if ancilla:
+                    ancilla = QuantumRegister(self.q_size//2)
+                    qc = QuantumCircuit(q_cont, q_targ, ancilla, name='T%s' % cont)
                 else:
-                    for ic, cont in enumerate(control):
-                        if cont == '1':
+                    ancilla = None
+                    qc = QuantumCircuit(q_cont, q_targ, name='T%s' % cont)
+                for cts, tgt in zip(control[1:], target):
+                    for ic, ct in enumerate(cts):
+                        if ct == '0' and tgt != set():
                             qc.x(q_cont[ic])
                     for tg in tgt:
-                        qc.mct([*q_cont, *[q_targ[ac] for ac in act]], q_targ[tg], ancilla)
-                    for ic, cont in enumerate(control):
-                        if cont == '1':
+                        qc.mct(q_cont, q_targ[tg], ancilla)
+                    for ic, ct in enumerate(cts):
+                        if ct == '0' and tgt != set():
                             qc.x(q_cont[ic])
-                    return qc.to_instruction()
+                print(qc)
+                return qc.to_instruction()
 
-    def _target_hm(self, st1, st2):
-        # print(st1, st2)
+    def _target_hm(self, state):
+        # the place we have to change
         hm = []
-        # additional control operations
-        ct_add = []
-        if st1 != st2:
-            for ind, s in enumerate(zip(st1, st2)):
+        for st in state:
+            for ids, s in enumerate(zip(st[0], st[1])):
                 if s[0] != s[1]:
-                    hm.append(ind)
-                else:
-                    ct_add.append(ind)
-        return hm, ct_add
+                    hm.append(ids)
+        return set(hm)
 
     def _take_bins(self, ref_state, other):
         converter = []
@@ -94,6 +103,19 @@ class OperationCreator:
                 ct += 1
         return converter
 
+    # more understandable name
+    def _addi_analysis(self, conversions):
+        print(conversions)
+        '''
+        remove duplications
+        '''
+        for icv, cv in enumerate(conversions):
+            # FIXME are there any efficient way rather than this?
+            if cv[0][0] == cv[0][1] and cv[1][0] == cv[1][1]:
+                conversions[icv] = []
+        conversion_table = conversions
+        return conversion_table
+
     @staticmethod
     def _binary_formatter(n, basis):
         return format(n, '0%sb' % str(basis))
@@ -101,13 +123,13 @@ class OperationCreator:
     def K_operation(self, dagger=False, ancilla=True):
         '''
         create reference states from basis state
-        K|b> = |phi_r> 
+        or if this is Kdag, reverse operation 
         '''
         refs, refid = self.parser.reference_state()
         rotations = self._get_rotaions(refs, dagger)
         # create Ki operations
-        qcont = QuantumRegister(self.q_size//2)
-        qtarg = QuantumRegister(self.q_size//2)
+        qcont = QuantumRegister(self.q_size//2, 'control')
+        qtarg = QuantumRegister(self.q_size//2, 'target')
         if ancilla:
             anc = QuantumRegister(self.q_size//2)
             qc = QuantumCircuit(qcont, qtarg, anc, name='Kop_anc') 
@@ -127,6 +149,7 @@ class OperationCreator:
             for ibx, bx in enumerate(ib):
                 if bx == '0':
                     qc.x(qcont[ibx])
+            qc.barrier()
         K_instruction = qc.to_instruction()
         return K_instruction
 
@@ -137,9 +160,7 @@ class OperationCreator:
             return circuit
         elif len(rotations) == 2:
             circuit.mcry(rotations[0], cont, targ[0], anc)
-            circuit.x(targ[0])
-            circuit.mcry(rotations[1], [*cont, targ[0]], targ[1], anc)
-            circuit.x(targ[0])
+            circuit.mcry(rotations[1], cont, targ[1], anc)
             return circuit
         else:
             circuit.mcry(rotations[0], cont, targ[0], anc)
@@ -212,7 +233,7 @@ class OperationCreator:
                 Dop.x(q)
         D_instruction = Dop.to_instruction()
         return D_instruction
-    
+
     @staticmethod
     def _qubit_size(dim):
         qsize = int(np.ceil(np.log2(dim)))
@@ -230,27 +251,28 @@ def prob_transition(graph):
     return pmatrix
 
 
-# if __name__ == '__main__':
-#     # graph = np.array([[0, 1, 0, 0],
-#     #                   [0, 0, 0, 1],
-#     #                   [0, 0, 0, 1],
-#     #                   [0, 1, 1, 0]])
-#     # graph = np.array([[0, 1, 0, 0, 1, 0],
-#     #                   [0, 0, 0, 1, 1, 0],
-#     #                   [0, 0, 0, 1, 1, 1],
-#     #                   [0, 1, 1, 0, 0, 0],
-#     #                   [0, 1, 0, 0, 0, 1],
-#     #                   [0, 1, 0, 0, 1, 0])
-#     graph = np.array([[0, 1, 0, 0, 1, 0, 0, 1],
-#                       [0, 0, 0, 1, 1, 0, 1, 0],
-#                       [0, 0, 0, 1, 0, 1, 0, 1],
-#                       [0, 1, 0, 0, 0, 0, 1, 0],
-#                       [0, 1, 0, 0, 0, 1, 0, 1],
-#                       [0, 1, 0, 0, 1, 0, 1, 1],
-#                       [0, 1, 0, 0, 1, 0, 0, 1],
-#                       [0, 1, 0, 0, 1, 0, 1, 0]])
-#     pb = prob_transition(graph)
-#     opcreator = OperationCreator(graph, pb)
-#     opcreator.D_operation()
-#     opcreator.T_operation()
-#     opcreator.K_operation()
+
+if __name__ == '__main__':
+    graph = np.array([[0, 1, 0, 0],
+                      [0, 0, 1, 1],
+                      [0, 0, 0, 1],
+                      [0, 1, 1, 0]])
+    # graph = np.array([[0, 1, 0, 0, 1, 0],
+    #                   [0, 0, 0, 1, 1, 0],
+    #                   [0, 0, 0, 1, 1, 1],
+    #                   [0, 1, 1, 0, 0, 0],
+    #                   [0, 1, 0, 0, 0, 1],
+    #                   [0, 1, 0, 0, 1, 0])
+    # graph = np.array([[0, 0, 1, 0, 0, 0, 0, 1],
+    #                   [0, 0, 0, 1, 0, 0, 1, 0],
+    #                   [0, 0, 1, 0, 0, 1, 1, 1],
+    #                   [0, 0, 0, 0, 0, 1, 1, 0],
+    #                   [0, 0, 0, 1, 1, 1, 1, 1],
+    #                   [0, 0, 0, 0, 1, 1, 1, 1],
+    #                   [0, 0, 0, 0, 1, 0, 0, 1],
+    #                   [0, 0, 0, 0, 1, 0, 1, 0]])
+    pb = prob_transition(graph)
+    opcreator = OperationCreator(graph, pb)
+    # opcreator.D_operation()
+    opcreator.T_operation()
+    # opcreator.K_operation()
