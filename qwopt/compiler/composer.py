@@ -20,11 +20,11 @@ class CircuitComposer:
         self.ptran = self.operator.ptran
         self.step = step
         if self.step < 0:
-            raise ValueError('The number of steps must be over 0')
+            raise ValueError('The number of steps must be 0 and over')
 
     def qw_circuit(self, anc=True, name='quantumwalk',
-                   measurement=True, initialize=True):
-        
+                   measurement=True, initialize=True, validation=True):
+
         cont = QuantumRegister(self.n_qubit//2, 'control')
         targ = QuantumRegister(self.n_qubit//2, 'target')
         anc = QuantumRegister(self.n_qubit//2, 'ancilla')
@@ -39,15 +39,26 @@ class CircuitComposer:
             init_state = [1] + [0 for i in range(lp-1)]
 
         qw = self._circuit_composer(qw, cont, targ, anc)
-        qw, correct = self._circuit_validator(qw, [*cont, *targ], init_state)
-        if measurement:
-            c = ClassicalRegister(self.n_qubit//2, 'classical') 
-            qw.add_register(c)
-            qw.measure(cont[::-1], c)
-        if correct:
-            return qw
+        # FIXME more efficient order
+        if validation:
+            qw, correct = self._circuit_validator(qw, [*cont, *targ], init_state)
+            if measurement:
+                c = ClassicalRegister(self.n_qubit//2, 'classical')
+                qw.add_register(c)
+                # TODO is this correct order?
+                qw.measure(cont[::-1], c)
+            if correct:
+                print('Circuit is validated!')
+                return qw
+            else:
+                raise Exception('Circuit validation failed')
         else:
-            raise Exception('Circuit validation failed')
+            if measurement:
+                c = ClassicalRegister(self.n_qubit//2, 'classical')
+                qw.add_register(c)
+                # TODO is this correct order?
+                qw.measure(cont[::-1], c)
+            return qw
 
     def _circuit_composer(self, circuit, cont, targ, anc, measurement=True):
         qubits = [*cont, *targ, *anc]
@@ -60,8 +71,8 @@ class CircuitComposer:
 
         circuit.barrier()
         circuit.append(Kdg, qargs=qubits)
-        nqc = transpile(circuit, basis_gates=['ccx', 'cx', 'x', 'h', 'u2', 'u1', 'u3'])
-        print(nqc)
+        nqc = transpile(circuit, basis_gates=['ccx', 'cx', 'x', 'h',
+                                              'u2', 'u1', 'u3'])
         circuit.barrier()
         circuit.append(D, qargs=targ)
         circuit.barrier()
@@ -71,11 +82,10 @@ class CircuitComposer:
             circuit.append(tdg, qargs=qubits)
         for i, j in zip(cont, targ):
             circuit.swap(i, j)
-        print(circuit)
         return circuit
 
     def _circuit_validator(self, test_circuit, qregs, init_state,
-                           remote=False, test_shots=100000):
+                           remote=False, test_shots=100000, threshold=1e-4):
         # TODO check with unitary simulator(currently, ansilla is bothering...)
         circuit = copy.copy(test_circuit)
         nc = ClassicalRegister(self.n_qubit)
@@ -94,15 +104,15 @@ class CircuitComposer:
         bins = [format(i, '0%sb' % rb) for i in range(2**rb)]
         emp_states = []
         probs = np.array([result.get(bi, 0)/test_shots for bi in bins])
-        print(theoretical_prob, probs)
-        
-        checkp = np.isclose(theoretical_prob, probs)
-        if all(checkp):
+        # TODO check L2 norm is good enough to validate in larger case
+        # and check threshold
+        l2dist = self._L2_dist(theoretical_prob, probs)
+        if l2dist < threshold:
             flag = True
         else:
             flag = False
         return test_circuit, flag
-    
+
     def _initialize(self, circuit, qregs, state='super'):
         if isinstance(state, list or np.ndarray):
             circuit.initialize(state, qregs)
@@ -111,6 +121,10 @@ class CircuitComposer:
                 circuit.h(qr)
         return circuit
     
+    def _L2_dist(self, pa, pb):
+        ps = [(p1 - p2)**2 for p1, p2 in zip(pa, pb)]
+        return sum(ps)
+
     def _theoretical_prob(self, init_state):
         Pi_op = self._Pi_operator()
         swap = self._swap_operator()
@@ -119,15 +133,17 @@ class CircuitComposer:
         Szegedy_n = copy.copy(Szegedy)
         initial = init_state
         if self.step == 0:
-            return initial
+            init_prob = np.array([abs(i)**2 for i in initial], dtype=np.float)
+            return init_prob
         elif self.step == 1:
-            return np.dot(Szegedy, initial)
+            prob = np.array([abs(i)**2 for i in np.dot(Szegedy, initial)], dtype=np.float)
+            return prob
         else:
             for n in range(self.step-1):
                 Szegedy_n = np.dot(Szegedy_n, Szegedy)
-            probs = np.dot(Szegedy_n, initial) 
-        return probs
-    
+            probs = np.array([abs(i)**2 for i in np.dot(Szegedy_n, initial)], dtype=np.float)
+            return probs
+
     def _swap_operator(self):
         q1 = QuantumRegister(self.n_qubit//2)
         q2 = QuantumRegister(self.n_qubit//2)
@@ -139,10 +155,10 @@ class CircuitComposer:
         job = execute(qc, backend=backend)
         swap = job.result().get_unitary(qc)
         return swap
-    
+
     def _Pi_operator(self):
         '''
-        This is not a quantum operation, 
+        This is not a quantum operation,
         just returning matrix
         '''
         lg = len(self.ptran)
@@ -190,7 +206,7 @@ def google_matrix(alpha, C):
     E = connect_to_E(C)
     N = len(C)
     G = alpha*E + (1-alpha)/N * np.ones((N, N), dtype=float)
-    return G 
+    return G
 
 
 def connect_to_E(C):
@@ -199,9 +215,9 @@ def connect_to_E(C):
     C: np.array
     output
     E: np.array
-    ''' 
+    '''
     N = len(C)
-    C = np.array(C) 
+    C = np.array(C)
     E = np.zeros(C.shape)
     rowsum = np.sum(C, axis=0)
     for ind, val in enumerate(rowsum):
@@ -211,7 +227,7 @@ def connect_to_E(C):
         else:
             for j in range(N):
                 E[j][ind] = C[j][ind]/val
-    assert(np.sum(np.sum(E, axis=0))==N)
+    assert(np.sum(np.sum(E, axis=0)) == N)
     return E
 
 
@@ -228,6 +244,10 @@ if __name__ == '__main__':
                       [0, 0, 0, 1],
                       [0, 0, 0, 1],
                       [0, 1, 1, 0]])
-    pb = prob_transition(graph, gtype='google')
+    # e = np.array([[1, 1, 1, 0],
+    #               [1, 0, 0, 1],
+    #               [1, 0, 0, 1],
+    #               [1, 1, 1, 0]])
+    pb = prob_transition(graph)
     comp = CircuitComposer(graph, pb, 1)
     comp.qw_circuit()

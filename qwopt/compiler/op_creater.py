@@ -11,7 +11,7 @@ class OperationCreator:
         Loke, T., and J. B. Wang. "Efficient quantum circuits
         for Szegedy quantum walks." Annals of Physics 382
         (2017): 64-84.
-    
+
     all functions return instruction sets
     which can be added to a circuit directly
     '''
@@ -20,7 +20,7 @@ class OperationCreator:
         self.graph = self.parser.graph
         self.ptran = self.parser.ptrans
         self.dim = self.parser.dim()
-        self.q_size = self._qubit_size(len(self.parser)) 
+        self.q_size = self._qubit_size(len(self.parser))
         self.basis_state = basis
 
     def T_operation(self):
@@ -48,7 +48,7 @@ class OperationCreator:
             # make correspondence table
             convs = [self._take_bins(ref_state, st) for st in states[1:]]
             if convs == [[]]:
-                # if all table elements are the same value, 
+                # if all table elements are the same value,
                 # we don't have to apply
                 return None
             else:
@@ -56,20 +56,19 @@ class OperationCreator:
                 # here we have to optimize additional target
                 ctable = self._addi_analysis(convs)
                 target = [self._target_hm(cnv) for cnv in ctable]
-                
+
                 control = [list(self._binary_formatter(ct, self.q_size//2))
                            for ct in cont]
-                print(control[1:], target)
                 # create instruction
                 q_cont = QuantumRegister(self.q_size//2)
                 q_targ = QuantumRegister(self.q_size//2)
                 if ancilla:
                     ancilla = QuantumRegister(self.q_size//2)
-                    qc = QuantumCircuit(q_cont, q_targ, 
-                                        ancilla, name='T%s' % cont)
+                    qc = QuantumCircuit(q_cont, q_targ,
+                                        ancilla, name='T%s' % cont[0])
                 else:
                     ancilla = None
-                    qc = QuantumCircuit(q_cont, q_targ, name='T%s' % cont)
+                    qc = QuantumCircuit(q_cont, q_targ, name='T%s' % cont[0])
                 for cts, tgt in zip(control[1:], target):
                     for ic, ct in enumerate(cts):
                         if ct == '0' and tgt != set():
@@ -79,14 +78,15 @@ class OperationCreator:
                     for ic, ct in enumerate(cts):
                         if ct == '0' and tgt != set():
                             qc.x(q_cont[ic])
-                print(qc)
                 return qc.to_instruction()
 
     def _target_hm(self, state):
         # the place we have to change
         hm = []
         for st in state:
-            for ids, s in enumerate(zip(st[0], st[1])):
+            # FIXME this reverse operations must be done before here.
+            # This reverse op is for making it applicable for qiskit.
+            for ids, s in enumerate(zip(st[0][::-1], st[1][::-1])):
                 if s[0] != s[1]:
                     hm.append(ids)
         return set(hm)
@@ -106,7 +106,6 @@ class OperationCreator:
 
     # more understandable name
     def _addi_analysis(self, conversions):
-        print(conversions)
         '''
         remove duplications
         '''
@@ -124,7 +123,7 @@ class OperationCreator:
     def K_operation(self, dagger=False, ancilla=True):
         '''
         create reference states from basis state
-        or if this is Kdag, reverse operation 
+        or if this is Kdag, reverse operation
         '''
         refs, refid = self.parser.reference_state()
         rotations = self._get_rotaions(refs, dagger)
@@ -133,7 +132,7 @@ class OperationCreator:
         qtarg = QuantumRegister(self.q_size//2, 'target')
         if ancilla:
             anc = QuantumRegister(self.q_size//2)
-            qc = QuantumCircuit(qcont, qtarg, anc, name='Kop_anc') 
+            qc = QuantumCircuit(qcont, qtarg, anc, name='Kop_anc')
         else:
             anc = None
             qc = QuantumCircuit(qcont, qtarg, name='Kop')
@@ -251,7 +250,7 @@ def prob_transition(graph):
             pmatrix[:, ix] = graph[:, ix]/indeg
     return pmatrix
 
-　
+
 if __name__ == '__main__':
     graph = np.array([[0, 1, 0, 0],
                       [0, 0, 1, 1],
