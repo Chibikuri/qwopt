@@ -13,7 +13,7 @@ class OperationCreator:
         (2017): 64-84.
     
     all functions return instruction sets
-    which can be added to circuit directly
+    which can be added to a circuit directly
     '''
     def __init__(self, graph, prob_tran, basis=0, optimize=True):
         self.parser = GraphParser(graph, prob_tran)
@@ -35,7 +35,6 @@ class OperationCreator:
             Ti_op = self._bin_converter(temp, range(rf, ref_index[irf+1]))
             if Ti_op is not None:
                 T_instructions.append(Ti_op)
-        # print(T_instructions)
         return T_instructions
 
     # TODO more understandable name
@@ -66,7 +65,8 @@ class OperationCreator:
                 q_targ = QuantumRegister(self.q_size//2)
                 if ancilla:
                     ancilla = QuantumRegister(self.q_size//2)
-                    qc = QuantumCircuit(q_cont, q_targ, ancilla, name='T%s' % cont)
+                    qc = QuantumCircuit(q_cont, q_targ, 
+                                        ancilla, name='T%s' % cont)
                 else:
                     ancilla = None
                     qc = QuantumCircuit(q_cont, q_targ, name='T%s' % cont)
@@ -99,7 +99,8 @@ class OperationCreator:
         ct = 0
         for iot, ot in enumerate(other):
             if ot == 1:
-                converter[ct].append(self._binary_formatter(iot, self.q_size//2))
+                converter[ct].append(self._binary_formatter(iot,
+                                                            self.q_size//2))
                 ct += 1
         return converter
 
@@ -250,8 +251,7 @@ def prob_transition(graph):
             pmatrix[:, ix] = graph[:, ix]/indeg
     return pmatrix
 
-
-
+　
 if __name__ == '__main__':
     graph = np.array([[0, 1, 0, 0],
                       [0, 0, 1, 1],
