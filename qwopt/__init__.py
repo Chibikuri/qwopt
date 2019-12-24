@@ -1,2 +1,2 @@
-# from qwopt.compiler import GraphParser
-# from qwopt.optimizerimp
+from compiler import *
+from optimizer import *

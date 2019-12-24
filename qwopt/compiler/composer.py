@@ -2,7 +2,7 @@ import numpy as np
 import copy
 from qiskit import QuantumCircuit, QuantumRegister, ClassicalRegister
 from qiskit import IBMQ, Aer, execute
-from op_creater import OperationCreator
+from .op_creater import OperationCreator
 from qiskit import transpile
 np.set_printoptions(linewidth=1000, precision=3)
 
@@ -120,8 +120,10 @@ class CircuitComposer:
             for qr in qregs:
                 circuit.h(qr)
         return circuit
-    
-    def _L2_dist(self, pa, pb):
+
+    @staticmethod
+    def _L2_dist(pa, pb):
+        # FIXME using array
         ps = [(p1 - p2)**2 for p1, p2 in zip(pa, pb)]
         return sum(ps)
 
@@ -191,63 +193,63 @@ def prob_transition(graph, gtype='normal', alpha=0.85):
         return pmatrix
 
 
-def is_unitary(operator, tolerance=0.0001):
-    h, w = operator.shape
-    if not h == w:
-        return False
-    adjoint = np.conjugate(operator.transpose())
-    product1 = np.dot(operator, adjoint)
-    product2 = np.dot(adjoint, operator)
-    ida = np.eye(h)
-    return np.allclose(product1, ida) & np.allclose(product2, ida)
+# def is_unitary(operator, tolerance=0.0001):
+#     h, w = operator.shape
+#     if not h == w:
+#         return False
+#     adjoint = np.conjugate(operator.transpose())
+#     product1 = np.dot(operator, adjoint)
+#     product2 = np.dot(adjoint, operator)
+#     ida = np.eye(h)
+#     return np.allclose(product1, ida) & np.allclose(product2, ida)
 
 
-def google_matrix(alpha, C):
-    E = connect_to_E(C)
-    N = len(C)
-    G = alpha*E + (1-alpha)/N * np.ones((N, N), dtype=float)
-    return G
+# def google_matrix(alpha, C):
+#     E = connect_to_E(C)
+#     N = len(C)
+#     G = alpha*E + (1-alpha)/N * np.ones((N, N), dtype=float)
+#     return G
 
 
-def connect_to_E(C):
-    '''
-    C is conectivity matrix
-    C: np.array
-    output
-    E: np.array
-    '''
-    N = len(C)
-    C = np.array(C)
-    E = np.zeros(C.shape)
-    rowsum = np.sum(C, axis=0)
-    for ind, val in enumerate(rowsum):
-        if val == 0:
-            for j in range(N):
-                E[j][ind] = 1/N
-        else:
-            for j in range(N):
-                E[j][ind] = C[j][ind]/val
-    assert(np.sum(np.sum(E, axis=0)) == N)
-    return E
+# def connect_to_E(C):
+#     '''
+#     C is conectivity matrix
+#     C: np.array
+#     output
+#     E: np.array
+#     '''
+#     N = len(C)
+#     C = np.array(C)
+#     E = np.zeros(C.shape)
+#     rowsum = np.sum(C, axis=0)
+#     for ind, val in enumerate(rowsum):
+#         if val == 0:
+#             for j in range(N):
+#                 E[j][ind] = 1/N
+#         else:
+#             for j in range(N):
+#                 E[j][ind] = C[j][ind]/val
+#     assert(np.sum(np.sum(E, axis=0)) == N)
+#     return E
 
 
-if __name__ == '__main__':
-    # graph = np.array([[0, 1, 0, 0, 1, 0, 0, 1],
-    #                   [0, 0, 0, 1, 1, 0, 1, 0],
-    #                   [0, 0, 0, 1, 0, 1, 0, 1],
-    #                   [0, 1, 0, 0, 0, 0, 1, 0],
-    #                   [0, 1, 0, 0, 0, 1, 0, 1],
-    #                   [0, 1, 0, 0, 1, 0, 1, 1],
-    #                   [0, 1, 0, 0, 1, 0, 0, 1],
-    #                   [0, 1, 0, 0, 1, 0, 1, 0]])
-    graph = np.array([[0, 1, 1, 0],
-                      [0, 0, 0, 1],
-                      [0, 0, 0, 1],
-                      [0, 1, 1, 0]])
-    # e = np.array([[1, 1, 1, 0],
-    #               [1, 0, 0, 1],
-    #               [1, 0, 0, 1],
-    #               [1, 1, 1, 0]])
-    pb = prob_transition(graph)
-    comp = CircuitComposer(graph, pb, 1)
-    comp.qw_circuit()
+# if __name__ == '__main__':
+#     # graph = np.array([[0, 1, 0, 0, 1, 0, 0, 1],
+#     #                   [0, 0, 0, 1, 1, 0, 1, 0],
+#     #                   [0, 0, 0, 1, 0, 1, 0, 1],
+#     #                   [0, 1, 0, 0, 0, 0, 1, 0],
+#     #                   [0, 1, 0, 0, 0, 1, 0, 1],
+#     #                   [0, 1, 0, 0, 1, 0, 1, 1],
+#     #                   [0, 1, 0, 0, 1, 0, 0, 1],
+#     #                   [0, 1, 0, 0, 1, 0, 1, 0]])
+#     graph = np.array([[0, 1, 1, 0],
+#                       [0, 0, 0, 1],
+#                       [0, 0, 0, 1],
+#                       [0, 1, 1, 0]])
+#     # e = np.array([[1, 1, 1, 0],
+#     #               [1, 0, 0, 1],
+#     #               [1, 0, 0, 1],
+#     #               [1, 1, 1, 0]])
+#     pb = prob_transition(graph)
+#     comp = CircuitComposer(graph, pb, 1)
+#     comp.qw_circuit()

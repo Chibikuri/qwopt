@@ -1,5 +1,5 @@
 import numpy as np
-from parser import GraphParser
+from .parser import GraphParser
 from qiskit import QuantumRegister, QuantumCircuit
 from numpy import pi
 
