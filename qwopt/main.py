@@ -4,6 +4,7 @@ from compiler import composer
 from optimizer import Optimizer
 
 import numpy as np
+import toml
 
 
 def is_unitary(operator, tolerance=0.0001):
@@ -66,5 +67,5 @@ graph = np.array([[0, 1, 1, 0],
                   [0, 1, 1, 0]])
 pb = prob_transition(graph)
 step = 1
-qc = composer.CircuitComposer(graph, pb, step).qw_circuit()
-opt = Optimizer(graph, pb).optimize(qc, 3)
+qc = composer.CircuitComposer(graph, pb, step).qw_circuit(validation=False)
+opt = Optimizer(graph, pb).optimize(qc, 3, open('ruleset.toml', 'r'))

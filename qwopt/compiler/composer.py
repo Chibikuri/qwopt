@@ -41,7 +41,8 @@ class CircuitComposer:
         qw = self._circuit_composer(qw, cont, targ, anc)
         # FIXME more efficient order
         if validation:
-            qw, correct = self._circuit_validator(qw, [*cont, *targ], init_state)
+            qw, correct = self._circuit_validator(qw, [*cont, *targ],
+                                                  init_state)
             if measurement:
                 c = ClassicalRegister(self.n_qubit//2, 'classical')
                 qw.add_register(c)
@@ -66,22 +67,19 @@ class CircuitComposer:
         Kdg = self.operator.K_operation(dagger=True)
         K = self.operator.K_operation(dagger=False)
         D = self.operator.D_operation()
+        # TODO remove commented out
         for t in Ts:
             circuit.append(t, qargs=qubits)
-
         circuit.barrier()
         circuit.append(Kdg, qargs=qubits)
-        nqc = transpile(circuit, basis_gates=['ccx', 'cx', 'x', 'h',
-                                              'u2', 'u1', 'u3'])
-        circuit.barrier()
-        circuit.append(D, qargs=targ)
-        circuit.barrier()
-        circuit.append(K, qargs=qubits)
-        circuit.barrier()
-        for tdg in Ts:
-            circuit.append(tdg, qargs=qubits)
-        for i, j in zip(cont, targ):
-            circuit.swap(i, j)
+        # nqc = transpile(circuit, basis_gates=['ccx', 'cx', 'x', 'h',
+        #                                       'u2', 'u1', 'u3'])
+        # circuit.append(D, qargs=targ)
+        # circuit.append(K, qargs=qubits)
+        # for tdg in Ts:
+        #     circuit.append(tdg, qargs=qubits)
+        # for i, j in zip(cont, targ):
+        #     circuit.swap(i, j)
         return circuit
 
     def _circuit_validator(self, test_circuit, qregs, init_state,
@@ -138,12 +136,14 @@ class CircuitComposer:
             init_prob = np.array([abs(i)**2 for i in initial], dtype=np.float)
             return init_prob
         elif self.step == 1:
-            prob = np.array([abs(i)**2 for i in np.dot(Szegedy, initial)], dtype=np.float)
+            prob = np.array([abs(i)**2 for i in np.dot(Szegedy, initial)],
+                            dtype=np.float)
             return prob
         else:
             for n in range(self.step-1):
                 Szegedy_n = np.dot(Szegedy_n, Szegedy)
-            probs = np.array([abs(i)**2 for i in np.dot(Szegedy_n, initial)], dtype=np.float)
+            probs = np.array([abs(i)**2 for i in np.dot(Szegedy_n, initial)],
+                             dtype=np.float)
             return probs
 
     def _swap_operator(self):

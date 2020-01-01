@@ -1,0 +1,12 @@
+title = 'ruleset for szegedy walk'
+
+[owner]
+name = 'Ryosuke Satoh'
+
+[rule0]
+n_ancilla = 1
+rccx = true
+
+[rule1]
+
+[rule2]

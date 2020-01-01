@@ -39,13 +39,13 @@ class GraphParser:
         if optimize:
             self.graph_opt()
             self.opt_flag = True
-        
+
     def __len__(self):
         return len(self.graph)
 
     def n_connections(self):
         return np.sum(self.graph, axis=0)
-    
+
     def graph(self):
         return self.graph
 

@@ -1,3 +1,8 @@
+from qiskit import QuantumRegister
+from qiskit.transpiler.passes import Unroller
+import toml
+import sys
+
 '''
 FIXME This scheme might be unefficient.
 TODO easier to write and make some parser
@@ -16,8 +21,12 @@ class Rules:
     TODO make this executable in arbitrary order
     '''
 
-    def __init__(self):
-        pass
+    def __init__(self, config):
+        '''
+        HACK
+        config: converted toml (opened toml)
+        '''
+        self.toml = toml.load(config)
 
     def apply_rules(self):
         pass
@@ -27,7 +36,7 @@ class Rules:
         optimization about ancillary qubits
         In this optimization, once map the control operations to ancillae
         qubits, and then, reduce the number of operations.
-        
+
         Input:
             dag: DAG
         Output:
@@ -35,6 +44,29 @@ class Rules:
         '''
         # FIXME if the position of partition is symmetry,
         # we can't apply this optimization because it's redundunt
+
+        # procedure 1, add ancilal or find ancilla
+        # FIXME
+
+        p_rule0 = self.toml['rule0']
+        n_ancilla = p_rule0['n_ancilla']
+
+        # unrolling dag to basis compornents
+        ndag = Unroller(['ccx', 'cx', 'x', 'h', 'u3']).run(dag)
+
+        ndag_nodes = [i for i in ndag.nodes()]
+        ndag_names = [i.name for i in ndag_nodes]
+
+        # FIXME taking parameters dynamically
+        dag_nodes = [i for i in dag.nodes()]
+
+        if n_ancilla < 0:
+            raise ValueError('The number of ancillary qubits \
+                             must be 0 or over 0')
+        # adding ancilla qubit
+        q = QuantumRegister(n_ancilla, name='opt ancilla')
+        dag.add_qreg(q)
+        ndag.draw()
         return dag, False
 
     def _rule1(self, dag):
