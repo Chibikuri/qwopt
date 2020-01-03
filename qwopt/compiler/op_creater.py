@@ -1,5 +1,5 @@
 import numpy as np
-from .parser import GraphParser
+from parser import GraphParser
 from qiskit import QuantumRegister, QuantumCircuit
 from numpy import pi
 
@@ -24,6 +24,13 @@ class OperationCreator:
         self.basis_state = basis
 
     def T_operation(self):
+        '''
+        This is the operation called T operation.
+        This operator is converting some state to its reference state
+        by replacing binary order
+        NOTE: I'm not sure if there is an optimized way to do this,
+        but, thinking we can do this if we use some boolean calcuration.
+        '''
         ref_states, ref_index = self.parser.reference_state()
         ref_index.append(len(self.graph))
         T_instructions = []
@@ -120,38 +127,119 @@ class OperationCreator:
     def _binary_formatter(n, basis):
         return format(n, '0%sb' % str(basis))
 
-    def K_operation(self, dagger=False, ancilla=True):
+    def K_operation(self, dagger=False, ancilla=True, optimization=True,
+                    n_opt_ancilla=2, rccx=True):
         '''
+        Args:
+            dagger:
+            ancilla:
+            optimization:
+            n_opt_ancilla:
+            rccx
         create reference states from basis state
         or if this is Kdag, reverse operation
+        TODO: should separate the creation part and optimization part
         '''
         refs, refid = self.parser.reference_state()
         rotations = self._get_rotaions(refs, dagger)
         # create Ki operations
         qcont = QuantumRegister(self.q_size//2, 'control')
         qtarg = QuantumRegister(self.q_size//2, 'target')
-        if ancilla:
-            anc = QuantumRegister(self.q_size//2)
-            qc = QuantumCircuit(qcont, qtarg, anc, name='Kop_anc')
-        else:
-            anc = None
-            qc = QuantumCircuit(qcont, qtarg, name='Kop')
-        ct = 0
-        for i in range(self.dim[0]):
-            ib = list(self._binary_formatter(i, self.q_size//2))
-            if i in refid:
-                rfrot = rotations[ct]
-                ct += 1
-            for ibx, bx in enumerate(ib):
-                if bx == '0':
-                    qc.x(qcont[ibx])
-            qc = self._constructor(qc, rfrot, qcont, qtarg, anc)
-            for ibx, bx in enumerate(ib):
-                if bx == '0':
-                    qc.x(qcont[ibx])
+        # 1, ancilla mapping optimization
+        # if the number of reference states is the same as
+        # the length of matrix, we can't apply first optimization method.
+        if optimization and len(refid) != self.dim[0]:
+            # TODO refact
+            # separate the optimization part and creation part
+            opt_anc = QuantumRegister(n_opt_ancilla, name='opt_ancilla')
+            if ancilla:
+                anc = QuantumRegister(self.q_size//2)
+                qc = QuantumCircuit(qcont, qtarg, anc, opt_anc, name='opt_Kop')
+            else:
+                anc = None
+                qc = QuantumCircuit(qcont, qtarg, opt_anc, name='opt_Kop_n')
+            # HACK
+            # Unlke to bottom one, we need to detect which i we apply or not
+            qc = self._opt_K_operation(qc, qcont, qtarg, anc, opt_anc,
+                                       refid, rotations, dagger, rccx)
             qc.barrier()
-        K_instruction = qc.to_instruction()
-        return K_instruction
+            opt_K_instruction = qc.to_instruction()
+            return opt_K_instruction
+        else:
+            if ancilla:
+                anc = QuantumRegister(self.q_size//2)
+                qc = QuantumCircuit(qcont, qtarg, anc, name='Kop_anc')
+            else:
+                anc = None
+                qc = QuantumCircuit(qcont, qtarg, name='Kop')
+            ct = 0
+            for i in range(self.dim[0]):
+                ib = list(self._binary_formatter(i, self.q_size//2))
+                if i in refid:
+                    rfrot = rotations[ct]
+                    ct += 1
+                for ibx, bx in enumerate(ib):
+                    if bx == '0':
+                        qc.x(qcont[ibx])
+                qc = self._constructor(qc, rfrot, qcont, qtarg, anc)
+                for ibx, bx in enumerate(ib):
+                    if bx == '0':
+                        qc.x(qcont[ibx])
+                qc.barrier()
+            K_instruction = qc.to_instruction()
+            return K_instruction
+
+    def _opt_K_operation(self, qc, qcont, qtarg, anc, opt_anc,
+                         refid, rotations, dagger, rcx=True):
+        '''
+        TODO: apply each optimizations separately.
+        using ancilla, the structure is a litlle bit different from
+        usual one. we need to care about it.
+        '''
+        # If you are using rccx, the phase is destroyed
+        # you need to fix after one iteration
+        # HACK
+        # make the loop with rotations
+        print(rotations)
+        print(refid)
+        if dagger:
+            # mapping with rccx
+            qc = self._map_ancilla_dag(qc, qcont, qtarg, anc, opt_anc,
+                                       refid, rotations, rcx)
+        else:
+            # fix phase of ancilla
+            qc = self._map_ancilla(qc, qcont, qtarg, anc, opt_anc,
+                                   refid, rotations, rcx)
+        return qc
+
+    # FIXME too much argument
+    def _map_ancilla_dag(self, qc, cont, targ, anc, opt_anc,
+                         refid, rotations, rcx):
+        '''
+        applying dagger operation
+        the number of rotaions is corresponding to the number of
+        partitions of matrix.
+        '''
+        n_partitions = len(refid) - 1
+        if n_partitions == 0:
+            # This means the number of reference states is 0
+            circuit.mcry(rotations[0], cont, targ[0], anc)
+        elif n_partitions == 1:
+            pass
+        return qc
+
+    def _map_ancilla(self, qc, cont, targ, anc, opt_anc,
+                     refid, rotations, rcx):
+        '''
+        '''
+        print(rotations)
+        return qc
+
+    def _qft_constructor(self):
+        '''
+        Thinking if we can reduce the number of operations with qft
+        '''
+        pass
 
     def _constructor(self, circuit, rotations, cont, targ, anc):
         # TODO check
@@ -195,7 +283,8 @@ class OperationCreator:
                 rotations.append(0)
         else:
             if sum(state) != 0:
-                rotations.append(2*np.arccos(np.sqrt(sum(state[:int(lst/2)])/sum(state))))
+                rotations.append(2*np.arccos(
+                                 np.sqrt(sum(state[:int(lst/2)])/sum(state))))
             else:
                 rotations.append(0)
             self._rotation(state[:int(lst/2)], rotations, dagger)
@@ -273,5 +362,5 @@ if __name__ == '__main__':
     pb = prob_transition(graph)
     opcreator = OperationCreator(graph, pb)
     # opcreator.D_operation()
-    opcreator.T_operation()
-    # opcreator.K_operation()
+    # opcreator.T_operation()
+    opcreator.K_operation()

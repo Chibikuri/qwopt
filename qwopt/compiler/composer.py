@@ -72,14 +72,12 @@ class CircuitComposer:
             circuit.append(t, qargs=qubits)
         circuit.barrier()
         circuit.append(Kdg, qargs=qubits)
-        # nqc = transpile(circuit, basis_gates=['ccx', 'cx', 'x', 'h',
-        #                                       'u2', 'u1', 'u3'])
-        # circuit.append(D, qargs=targ)
-        # circuit.append(K, qargs=qubits)
-        # for tdg in Ts:
-        #     circuit.append(tdg, qargs=qubits)
-        # for i, j in zip(cont, targ):
-        #     circuit.swap(i, j)
+        circuit.append(D, qargs=targ)
+        circuit.append(K, qargs=qubits)
+        for tdg in Ts:
+            circuit.append(tdg, qargs=qubits)
+        for i, j in zip(cont, targ):
+            circuit.swap(i, j)
         return circuit
 
     def _circuit_validator(self, test_circuit, qregs, init_state,

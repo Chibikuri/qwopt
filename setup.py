@@ -23,7 +23,6 @@ setup(
     install_requires=['beautifulsoup4', 'lxml'],
     keywords='qwopt',
     packages=find_packages(exclude=('tests')),
-    # 今回コマンドを作ったのでconsole_scriptsを記述している
     entry_points={
         "console_scripts": [
             "pydata=pydata.__init__:main",
