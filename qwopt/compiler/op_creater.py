@@ -2,6 +2,7 @@ import numpy as np
 from parser import GraphParser
 from qiskit import QuantumRegister, QuantumCircuit
 from numpy import pi
+from operator import itemgetter
 
 
 class OperationCreator:
@@ -125,7 +126,7 @@ class OperationCreator:
 
     @staticmethod
     def _binary_formatter(n, basis):
-        return format(n, '0%sb' % str(basis))
+        return format(n, '0%db' % basis)
 
     def K_operation(self, dagger=False, ancilla=True, optimization=True,
                     n_opt_ancilla=2, rccx=True):
@@ -149,8 +150,11 @@ class OperationCreator:
         # if the number of reference states is the same as
         # the length of matrix, we can't apply first optimization method.
         if optimization and len(refid) != self.dim[0]:
-            # TODO refact
+            # TODO surplus ancillary qubits should be used efficientry
             # separate the optimization part and creation part
+            if n_opt_ancilla > len(qcont):
+                # FIXME:
+                raise ValueError('too much ancillary qubits')
             opt_anc = QuantumRegister(n_opt_ancilla, name='opt_ancilla')
             if ancilla:
                 anc = QuantumRegister(self.q_size//2)
@@ -200,39 +204,116 @@ class OperationCreator:
         # you need to fix after one iteration
         # HACK
         # make the loop with rotations
-        print(rotations)
-        print(refid)
+        # we have to detect if we can apply ancilla optimization
+        lv_table = self._level_detector(refid)
         if dagger:
             # mapping with rccx
             qc = self._map_ancilla_dag(qc, qcont, qtarg, anc, opt_anc,
-                                       refid, rotations, rcx)
+                                       refid, rotations, lv_table, rcx)
         else:
             # fix phase of ancilla
             qc = self._map_ancilla(qc, qcont, qtarg, anc, opt_anc,
-                                   refid, rotations, rcx)
+                                   refid, rotations, lv_table, rcx)
         return qc
+
+    def _level_detector(self, refid):
+        lv_table = []
+        mx_bin = self.dim[0]
+        for i in range(1, mx_bin):
+            if i in refid:
+                pre_i = list(self._binary_formatter(i-1, self.q_size//2))
+                bin_i = list(self._binary_formatter(i, self.q_size//2))
+                for ilv, st in enumerate(zip(pre_i, bin_i)):
+                    if st[0] != st[1]:
+                        lv_table.append(ilv)
+                        break
+        return lv_table
 
     # FIXME too much argument
     def _map_ancilla_dag(self, qc, cont, targ, anc, opt_anc,
-                         refid, rotations, rcx):
+                         refid, rotations, lv_table, rcx):
         '''
         applying dagger operation
         the number of rotaions is corresponding to the number of
         partitions of matrix.
         '''
         n_partitions = len(refid) - 1
-        if n_partitions == 0:
-            # This means the number of reference states is 0
-            circuit.mcry(rotations[0], cont, targ[0], anc)
-        elif n_partitions == 1:
-            pass
+        # FIXME debug settings!!!!!!!
+        # opt_level = len(opt_anc)
+        opt_level = 2
+        start = min(lv_table)
+        end = start + opt_level
+        # mapping once from control to ancillary qubits
+        # iopt is for pointing the index of ancillary qubits
+        # procedure
+        # In the case of the number of partitioin is one
+        # 1. detect the position of partitions if the position is the
+        # second most left or right, apply operations.
+        # 2. else, we need to detect the level of optimization
+        print(lv_table)
+        print(refid)
+        if n_partitions == 1:
+            # HACK
+            if refid[-1] == 1 or refid[-1] == self.dim[0] - 1:
+                qc = self._mapping(qc, cont, opt_anc[0], False, anc)
+                for rotation in rotations:
+                    qc = self._constructor(qc, rotation, [opt_anc[0]],
+                                           targ, anc)
+                    qc.x(opt_anc[0])
+                # no inverse is required here
+            else:
+                for iopt, opt in enumerate(range(start, end)):
+                    # TODO: do we have to take indices?
+                    # qc.cx(cont[opt], opt_anc[iopt])
+                    raise Warning('Under construction')
+        else:
+            raise Warning('the case of the number of partition is over \
+                          1 is being under constructing.')
+        print(qc)
+        return qc
+
+    @staticmethod
+    def _mapping(qc, cont, targ, rcx, anc):
+        if len(cont) == 1:
+            qc.cx(cont, targ)
+        elif len(cont) == 2:
+            if rcx:
+                qc.rccx(cont[0], cont[1], targ)
+            else:
+                qc.ccx(cont[0], cont[1], targ)
+        else:
+            qc.mct(cont, targ, anc)
         return qc
 
     def _map_ancilla(self, qc, cont, targ, anc, opt_anc,
-                     refid, rotations, rcx):
+                     refid, rotations, lv_table, rcx):
         '''
         '''
-        print(rotations)
+        n_partitions = len(refid) - 1
+        # FIXME debug settings!!!!!!!
+        # opt_level = len(opt_anc)
+        opt_level = 2
+        start = min(lv_table)
+        end = start + opt_level
+        if n_partitions == 1:
+            # HACK
+            if refid[-1] == 1 or refid[-1] == self.dim[0] - 1:
+                for rotation in rotations:
+                    qc = self._constructor(qc, rotation, [opt_anc[0]],
+                                           targ, anc)
+                    qc.x(opt_anc[0])
+                # This corresponds to the reverse operation
+                qc = self._mapping(qc, cont, opt_anc[0], False, anc)
+                # no inverse is required here
+            else:
+                for iopt, opt in enumerate(range(start, end)):
+                    # TODO: do we have to take indices?
+                    # qc.cx(cont[opt], opt_anc[iopt])
+                    raise Warning('Under construction')
+        else:
+            raise Warning('the case of the number of partition is over \
+                          1 is being under constructing.')
+        print(qc)
         return qc
 
     def _qft_constructor(self):
@@ -359,8 +440,16 @@ if __name__ == '__main__':
     #                   [0, 0, 0, 0, 1, 1, 1, 1],
     #                   [0, 0, 0, 0, 1, 0, 0, 1],
     #                   [0, 0, 0, 0, 1, 0, 1, 0]])
+    # graph = np.array([[1, 1, 1, 0, 0, 0, 0, 1],
+    #                   [0, 0, 0, 1, 0, 0, 1, 1],
+    #                   [0, 0, 1, 0, 0, 1, 0, 1],
+    #                   [1, 1, 0, 0, 0, 0, 0, 0],
+    #                   [0, 0, 0, 1, 1, 0, 0, 1],
+    #                   [0, 0, 0, 0, 0, 1, 0, 0],
+    #                   [0, 0, 0, 0, 0, 0, 0, 0],
+    #                   [0, 0, 0, 0, 1, 0, 1, 0]])
     pb = prob_transition(graph)
     opcreator = OperationCreator(graph, pb)
     # opcreator.D_operation()
     # opcreator.T_operation()
-    opcreator.K_operation()
+    opcreator.K_operation(dagger=False)
