@@ -22,8 +22,8 @@ class CircuitComposer:
         if self.step < 0:
             raise ValueError('The number of steps must be 0 and over')
 
-    def qw_circuit(self, anc=True, name='quantumwalk',
-                   measurement=True, initialize=True, validation=True):
+    def qw_circuit(self, anc=True, name='quantumwalk', measurement=True,
+                   initialize=True, validation=True, optimization=True):
 
         cont = QuantumRegister(self.n_qubit//2, 'control')
         targ = QuantumRegister(self.n_qubit//2, 'target')
@@ -38,7 +38,7 @@ class CircuitComposer:
             # FIXME should be able to put arbitraly input initial
             init_state = [1] + [0 for i in range(lp-1)]
 
-        qw = self._circuit_composer(qw, cont, targ, anc)
+        qw = self._circuit_composer(qw, cont, targ, anc, optimization)
         # FIXME more efficient order
         if validation:
             qw, correct = self._circuit_validator(qw, [*cont, *targ],
@@ -47,7 +47,7 @@ class CircuitComposer:
                 c = ClassicalRegister(self.n_qubit//2, 'classical')
                 qw.add_register(c)
                 # TODO is this correct order?
-                qw.measure(cont[::-1], c)
+                qw.measure(targ, c)
             if correct:
                 print('Circuit is validated!')
                 return qw
@@ -58,32 +58,41 @@ class CircuitComposer:
                 c = ClassicalRegister(self.n_qubit//2, 'classical')
                 qw.add_register(c)
                 # TODO is this correct order?
-                qw.measure(cont[::-1], c)
+                qw.measure(targ, c)
             return qw
 
-    def _circuit_composer(self, circuit, cont, targ, anc, measurement=True):
+    def _circuit_composer(self, circuit, cont, targ, anc,
+                          measurement=True, optimization=False):
         qubits = [*cont, *targ, *anc]
+        if optimization:
+            # HACK
+            # ancillary qubits for optimizations
+            opt_anc = QuantumRegister(self.n_qubit//2)
+            circuit.add_register(opt_anc)
+            opt_qubits = [*cont, *targ, *anc, *opt_anc]
+        else:
+            opt_qubits = [*cont, *targ, *anc]
         Ts = self.operator.T_operation()
-        Kdg = self.operator.K_operation(dagger=True)
-        K = self.operator.K_operation(dagger=False)
+        Kdg = self.operator.K_operation(dagger=True, optimization=optimization)
+        K = self.operator.K_operation(dagger=False, optimization=optimization)
         D = self.operator.D_operation()
         # TODO remove commented out
-        for t in Ts:
-            circuit.append(t, qargs=qubits)
-        circuit.barrier()
-        circuit.append(Kdg, qargs=qubits)
-        circuit.append(D, qargs=targ)
-        circuit.append(K, qargs=qubits)
-        for tdg in Ts:
-            circuit.append(tdg, qargs=qubits)
-        for i, j in zip(cont, targ):
-            circuit.swap(i, j)
+        for step in range(self.step):
+            for t in Ts:
+                circuit.append(t, qargs=qubits)
+            circuit.append(Kdg, qargs=opt_qubits)
+            circuit.append(D, qargs=targ)
+            circuit.append(K, qargs=opt_qubits)
+            for tdg in Ts:
+                circuit.append(tdg, qargs=qubits)
+            for i, j in zip(cont, targ):
+                circuit.swap(i, j)
+            circuit.barrier()
         return circuit
 
-    def _circuit_validator(self, test_circuit, qregs, init_state,
+    def _circuit_validator(self, circuit, qregs, init_state,
                            remote=False, test_shots=100000, threshold=1e-4):
         # TODO check with unitary simulator(currently, ansilla is bothering...)
-        circuit = copy.copy(test_circuit)
         nc = ClassicalRegister(self.n_qubit)
         circuit.add_register(nc)
         for q, c in zip(qregs[::-1], nc):
@@ -107,7 +116,8 @@ class CircuitComposer:
             flag = True
         else:
             flag = False
-        return test_circuit, flag
+        circuit.remove_final_measurements()
+        return circuit, flag
 
     def _initialize(self, circuit, qregs, state='super'):
         if isinstance(state, list or np.ndarray):

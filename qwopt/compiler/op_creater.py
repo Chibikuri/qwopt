@@ -1,8 +1,7 @@
 import numpy as np
-from parser import GraphParser
+from .parser import GraphParser
 from qiskit import QuantumRegister, QuantumCircuit
 from numpy import pi
-from operator import itemgetter
 
 
 class OperationCreator:
@@ -166,7 +165,6 @@ class OperationCreator:
             # Unlke to bottom one, we need to detect which i we apply or not
             qc = self._opt_K_operation(qc, qcont, qtarg, anc, opt_anc,
                                        refid, rotations, dagger, rccx)
-            qc.barrier()
             opt_K_instruction = qc.to_instruction()
             return opt_K_instruction
         else:
@@ -250,8 +248,6 @@ class OperationCreator:
         # 1. detect the position of partitions if the position is the
         # second most left or right, apply operations.
         # 2. else, we need to detect the level of optimization
-        print(lv_table)
-        print(refid)
         if n_partitions == 1:
             # HACK
             if refid[-1] == 1 or refid[-1] == self.dim[0] - 1:
@@ -262,6 +258,11 @@ class OperationCreator:
                     qc.x(opt_anc[0])
                 # no inverse is required here
             else:
+                if opt_level == self.q_size//2 - 1:
+                    print('hello')
+                # general case
+                print(refid)
+                print(lv_table)
                 for iopt, opt in enumerate(range(start, end)):
                     # TODO: do we have to take indices?
                     # qc.cx(cont[opt], opt_anc[iopt])
@@ -313,7 +314,6 @@ class OperationCreator:
         else:
             raise Warning('the case of the number of partition is over \
                           1 is being under constructing.')
-        print(qc)
         return qc
 
     def _qft_constructor(self):
@@ -422,10 +422,10 @@ def prob_transition(graph):
 
 
 if __name__ == '__main__':
-    graph = np.array([[0, 1, 0, 0],
-                      [0, 0, 1, 1],
-                      [0, 0, 0, 1],
-                      [0, 1, 1, 0]])
+    # graph = np.array([[0, 1, 0, 0],
+    #                   [0, 0, 1, 1],
+    #                   [0, 0, 0, 1],
+    #                   [0, 1, 1, 0]])
     # graph = np.array([[0, 1, 0, 0, 1, 0],
     #                   [0, 0, 0, 1, 1, 0],
     #                   [0, 0, 0, 1, 1, 1],
@@ -440,16 +440,16 @@ if __name__ == '__main__':
     #                   [0, 0, 0, 0, 1, 1, 1, 1],
     #                   [0, 0, 0, 0, 1, 0, 0, 1],
     #                   [0, 0, 0, 0, 1, 0, 1, 0]])
-    # graph = np.array([[1, 1, 1, 0, 0, 0, 0, 1],
-    #                   [0, 0, 0, 1, 0, 0, 1, 1],
-    #                   [0, 0, 1, 0, 0, 1, 0, 1],
-    #                   [1, 1, 0, 0, 0, 0, 0, 0],
-    #                   [0, 0, 0, 1, 1, 0, 0, 1],
-    #                   [0, 0, 0, 0, 0, 1, 0, 0],
-    #                   [0, 0, 0, 0, 0, 0, 0, 0],
-    #                   [0, 0, 0, 0, 1, 0, 1, 0]])
+    graph = np.array([[0, 0, 0, 0, 0, 0, 0, 1],
+                      [0, 0, 0, 1, 0, 0, 1, 0],
+                      [0, 0, 0, 0, 0, 1, 0, 0],
+                      [0, 0, 0, 0, 0, 0, 0, 0],
+                      [0, 0, 0, 1, 1, 0, 0, 1],
+                      [0, 0, 0, 0, 0, 1, 0, 0],
+                      [0, 0, 0, 0, 0, 0, 0, 0],
+                      [0, 0, 0, 0, 1, 0, 1, 0]])
     pb = prob_transition(graph)
     opcreator = OperationCreator(graph, pb)
     # opcreator.D_operation()
     # opcreator.T_operation()
-    opcreator.K_operation(dagger=False)
+    opcreator.K_operation(dagger=True)

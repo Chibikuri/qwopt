@@ -4,11 +4,18 @@ url = "https://pypi.org/simple"
 verify_ssl = true
 
 [dev-packages]
+autopep8 = "*"
+isort = "*"
 
 [packages]
 qiskit = "*"
 numpy = "*"
 toml = "*"
+jupyter = "*"
+jupytext = "*"
+matplotlib = "*"
+seaborn = "*"
+tqdm = "*"
 
 [requires]
 python_version = "3.7"
