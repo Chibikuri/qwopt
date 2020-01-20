@@ -259,10 +259,11 @@ class OperationCreator:
                 # no inverse is required here
             else:
                 if opt_level == self.q_size//2 - 1:
-                    print('hello')
+                    # print('hello')
+                    pass
                 # general case
-                print(refid)
-                print(lv_table)
+                # print(refid)
+                # print(lv_table)
                 for iopt, opt in enumerate(range(start, end)):
                     # TODO: do we have to take indices?
                     # qc.cx(cont[opt], opt_anc[iopt])
@@ -270,7 +271,7 @@ class OperationCreator:
         else:
             raise Warning('the case of the number of partition is over \
                           1 is being under constructing.')
-        print(qc)
+        # print(qc)
         return qc
 
     @staticmethod

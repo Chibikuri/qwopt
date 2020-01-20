@@ -71,7 +71,6 @@ class FidelityAnalyzer:
         return fidelities
 
     def _u3fix(self, qc):
-        print(qc.count_ops())
         nst = 2**len(self.mes_qbt)
         bins = [format(i, '0%db' % len(self.mes_qbt))
                 for i in range(nst)]
@@ -81,6 +80,7 @@ class FidelityAnalyzer:
         idealcounts = ideal.result().get_counts()
         idealst = np.array([idealcounts.get(i, 0)/(self.shots*10)
                            for i in bins])
+        print(idealst)
         # making noise model with error rate
         u3error = depolarizing_error(self.one_error, 1)
         # start simulations
@@ -100,6 +100,7 @@ class FidelityAnalyzer:
                 stvec = [counts.get(i, 0)/self.shots for i in bins]
                 stf = state_fidelity(idealst, stvec)
                 mid.append(stf)
+            print(stvec)
             mean_fid.append(np.mean(mid))
             std_fid.append(np.std(mid))
         return mean_fid, std_fid
@@ -221,6 +222,6 @@ if __name__ == '__main__':
         qc.cx(q[1], q[0])
     qc.measure(q[0], c[0])
     qc.measure(q[1], c[1])
-    analyzer = FidelityAnalyzer(0.01, np.arange(0, 0.2, 0.001), [0, 1], extime=100)
+    analyzer = FidelityAnalyzer(0.01, np.arange(0, 0.1, 0.01), [0, 1], extime=10)
     result = analyzer.fidelity_drop(qc)
     print(result)

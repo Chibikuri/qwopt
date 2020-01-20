@@ -29,16 +29,21 @@ class CircuitComposer:
         targ = QuantumRegister(self.n_qubit//2, 'target')
         anc = QuantumRegister(self.n_qubit//2, 'ancilla')
         qw = QuantumCircuit(cont, targ, anc, name=name)
-        if initialize:
+        lp = len(self.ptran)**2
+        # HACK
+        if isinstance(initialize, bool) and initialize:
             self._initialize(qw, [*cont, *targ])
             # FIXME
-            lp = len(self.ptran)**2
             init_state = [1/np.sqrt(lp) for i in range(lp)]
+        elif isinstance(initialize, (list, np.ndarray)):
+            self._initialize(qw, [*cont, *targ], state=initialize)
+            init_state = initialize
         else:
             # FIXME should be able to put arbitraly input initial
             init_state = [1] + [0 for i in range(lp-1)]
 
-        qw = self._circuit_composer(qw, cont, targ, anc, optimization)
+        qw = self._circuit_composer(qw, cont, targ, anc,
+                                    optimization=optimization)
         # FIXME more efficient order
         if validation:
             qw, correct = self._circuit_validator(qw, [*cont, *targ],
@@ -95,20 +100,21 @@ class CircuitComposer:
         # TODO check with unitary simulator(currently, ansilla is bothering...)
         nc = ClassicalRegister(self.n_qubit)
         circuit.add_register(nc)
-        for q, c in zip(qregs[::-1], nc):
+        for q, c in zip(qregs, nc):
             circuit.measure(q, c)
         if remote:
             backend = IBMQ.get_backend('ibmq_qasm_simulator')
         else:
             backend = Aer.get_backend('qasm_simulator')
         theoretical_prob = self._theoretical_prob(init_state)
+        print(theoretical_prob)
 
         vjob = execute(circuit, backend=backend, shots=test_shots)
         result = vjob.result().get_counts(circuit)
         rb = self.n_qubit
         bins = [format(i, '0%sb' % rb) for i in range(2**rb)]
-        emp_states = []
         probs = np.array([result.get(bi, 0)/test_shots for bi in bins])
+        print(probs)
         # TODO check L2 norm is good enough to validate in larger case
         # and check threshold
         l2dist = self._L2_dist(theoretical_prob, probs)
@@ -120,11 +126,13 @@ class CircuitComposer:
         return circuit, flag
 
     def _initialize(self, circuit, qregs, state='super'):
-        if isinstance(state, list or np.ndarray):
+        if isinstance(state, (list, np.ndarray)):
             circuit.initialize(state, qregs)
-        else:
+        elif state == 'super':
             for qr in qregs:
                 circuit.h(qr)
+        else:
+            pass
         return circuit
 
     @staticmethod
@@ -133,13 +141,12 @@ class CircuitComposer:
         ps = [(p1 - p2)**2 for p1, p2 in zip(pa, pb)]
         return sum(ps)
 
-    def _theoretical_prob(self, init_state):
+    def _theoretical_prob(self, initial):
         Pi_op = self._Pi_operator()
         swap = self._swap_operator()
         operator = (2*Pi_op) - np.identity(len(Pi_op))
         Szegedy = np.dot(operator, swap)
-        Szegedy_n = copy.copy(Szegedy)
-        initial = init_state
+        Szegedy_n = copy.deepcopy(Szegedy)
         if self.step == 0:
             init_prob = np.array([abs(i)**2 for i in initial], dtype=np.float)
             return init_prob
