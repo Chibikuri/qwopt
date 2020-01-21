@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 # ---
 # jupyter:
 #   jupytext:
@@ -270,15 +271,18 @@ def KL_divergence(p, q, torelance=10e-9):
     divergence = np.sum(parray*np.log(parray/qarray))
     return divergence
 
-def get_error(qc, ideal, err_model, nq, type='L2', shots=10000):
+def get_error(qcs,  ideal, err_model, nq, type='KL', shots=10000):
     bins = [format(i, '0%db'%nq) for i in range(2**nq)]
-    job = execute(qc, backend=qasm_sim, shots=shots, noise_model=err_model)
-    counts = job.result().get_counts(qc)
-    prob = np.array([counts.get(b, 0)/shots for b in bins])
-    id_prob = np.array(ideal)
-    l2_error = np.sum([(i-j)**2 for i, j in zip(id_prob, prob)])
-#     error = KL_divergence(id_prob, prob)
-    return l2_error
+    job = execute(qcs, backend=qasm_sim, shots=shots, noise_model=err_model)
+    all_counts = [job.result().get_counts(qc) for qc in qcs]
+    errors = []
+    for counts in all_counts:
+        prob = np.array([counts.get(b, 0)/shots for b in bins])
+        id_prob = np.array(ideal)
+#         l2_error = np.sum([(i-j)**2 for i, j in zip(id_prob, prob)])
+        KL_error = KL_divergence(id_prob, prob)
+        errors.append(KL_error)
+    return KL_error
 
 def theoretical_prob(initial, step, ptran, nq):
         Pi_op = Pi_operator(ptran)
@@ -384,40 +388,28 @@ for ce, st in tqdm(zip(errors, steps)):
         error_model.add_all_qubit_quantum_error(u3_error, ['u3', 'u2'])
         error_model.add_all_qubit_quantum_error(cx_error, ['cx'])
     # ex1
-        mean1 = []
-        for t in range(extime):
-            opt_qc = transpile(four_node(True, step), basis_gates=['cx', 'u3'], optimization_level=0)
-            error = get_error(opt_qc, ideal_prob, error_model, 2)
-            mean1.append(error)
-        ex1_mean.append(np.mean(mean1))
-        ex1_std.append(np.std(mean1))
+        opt_qc = [transpile(four_node(True, step), basis_gates=['cx', 'u3'], optimization_level=0) for i in range(exitime)]
+        errors = get_error(opt_qc, ideal_prob, error_model, 2)
+        ex1_mean.append(np.mean(errors))
+        ex1_std.append(np.std(errors))
 
 #     ex2
-        mean2 = []
-        for t in range(extime):
-            opt_qc = transpile(four_node(True, step), basis_gates=['cx', 'u3'], optimization_level=3)
-            error = get_error(opt_qc, ideal_prob, error_model, 2)
-            mean2.append(error)
-        ex2_mean.append(np.mean(mean2))
-        ex2_std.append(np.std(mean2))
+        opt_qc = [transpile(four_node(True, step), basis_gates=['cx', 'u3'], optimization_level=3) for i in range(extime)]
+        errors = get_error(opt_qc, ideal_prob, error_model, 2)
+        ex2_mean.append(np.mean(errors))
+        ex2_std.append(np.std(errors))
 
 # ex3
-        mean3 = []
-        for t in range(extime):
-            opt_qc = transpile(four_node(False, step), basis_gates=['cx', 'u3'], optimization_level=3)
-            error = get_error(opt_qc, ideal_prob, error_model, 2)
-            mean3.append(error)
-        ex3_mean.append(np.mean(mean3))
-        ex3_std.append(np.std(mean3))
+        opt_qc = [transpile(four_node(False, step), basis_gates=['cx', 'u3'], optimization_level=3) for i in range(extime)]
+        errors = get_error(opt_qc, ideal_prob, error_model, 2)
+        ex3_mean.append(np.mean(errors))
+        ex3_std.append(np.std(errors))
 
     #     ex4
-        mean4 = []
-        for t in range(extime):
-            nopt_qc = transpile(four_node(False, step), basis_gates=['cx', 'u3'], optimization_level=0)
-            error = get_error(nopt_qc, ideal_prob, error_model, 2)
-            mean4.append(error)
-        ex4_mean.append(np.mean(mean4))
-        ex4_std.append(np.std(mean4))
+        nopt_qc = [transpile(four_node(False, step), basis_gates=['cx', 'u3'], optimization_level=0) for i in range(10)]
+        error = get_error(nopt_qc, ideal_prob, error_model, 2)
+        ex4_mean.append(np.mean(errors))
+        ex4_std.append(np.std(errors))
 # -
 
 # ### plot 3d
@@ -825,47 +817,34 @@ for ce, st in tqdm(zip(errors, steps)):
         error_model.add_all_qubit_quantum_error(u3_error, ['u3', 'u2'])
         error_model.add_all_qubit_quantum_error(cx_error, ['cx'])
     # ex1
-        mean1 = []
-        for t in range(extime):
-            opt_qc = transpile(eight_node(True, step, init_state_eight), basis_gates=['cx', 'u3'], optimization_level=0)
-            error = get_error(opt_qc, ideal_prob, error_model, 2)
-            mean1.append(error)
-        ex1_mean.append(np.mean(mean1))
-        ex1_std.append(np.std(mean1))
+        opt_qc = [transpile(eight_node(True, step, init_state_eight), basis_gates=['cx', 'u3'], optimization_level=0) for i in range(extime)]
+        errors = get_error(opt_qc, ideal_prob, error_model, 2)
+        ex1_mean.append(np.mean(errors))
+        ex1_std.append(np.std(errors))
 
 #     ex2
-        mean2 = []
-        for t in range(extime):
-            opt_qc = transpile(eight_node(True, step, init_state_eight), basis_gates=['cx', 'u3'], optimization_level=3)
-            error = get_error(opt_qc, ideal_prob, error_model, 2)
-            mean2.append(error)
-        ex2_mean.append(np.mean(mean2))
-        ex2_std.append(np.std(mean2))
+        opt_qc = [transpile(eight_node(True, step, init_state_eight), basis_gates=['cx', 'u3'], optimization_level=3) for i in range(extime)]
+        errors = get_error(opt_qc, ideal_prob, error_model, 2)
+        ex2_mean.append(np.mean(errors))
+        ex2_std.append(np.std(errors))
 
 # ex3
-        mean3 = []
-        for t in range(extime):
-            opt_qc = transpile(eight_node(False, step, init_state_eight), basis_gates=['cx', 'u3'], optimization_level=3)
-            error = get_error(opt_qc, ideal_prob, error_model, 2)
-            mean3.append(error)
-        ex3_mean.append(np.mean(mean3))
-        ex3_std.append(np.std(mean3))
+        opt_qc = [transpile(eight_node(False, step, init_state_eight), basis_gates=['cx', 'u3'], optimization_level=3)for i in range(extime)]
+        errors = get_error(opt_qc, ideal_prob, error_model, 2)
+        ex3_mean.append(np.mean(errors))
+        ex3_std.append(np.std(errors))
 
     #     ex4
-        mean4 = []
-        for t in range(extime):
-            nopt_qc = transpile(eight_node(False, step, init_state_eight), basis_gates=['cx', 'u3'], optimization_level=0)
-            error = get_error(nopt_qc, ideal_prob, error_model, 2)
-            mean4.append(error)
-        ex4_mean.append(np.mean(mean4))
-        ex4_std.append(np.std(mean4))
+        nopt_qc = [transpile(eight_node(False, step, init_state_eight), basis_gates=['cx', 'u3'], optimization_level=0) for i in range(extime)]
+        errors = get_error(nopt_qc, ideal_prob, error_model, 2)
+        ex4_mean.append(np.mean(errors))
+        ex4_std.append(np.std(errors))
 # -
 
 res1 = np.array(ex1_mean).reshape(10, 10)
 res2 = np.array(ex2_mean).reshape(10, 10)
 res3 = np.array(ex3_mean).reshape(10, 10)
 res4 = np.array(ex4_mean).reshape(10, 10)
-print(res1)
 
 # +
 fig = plt.figure(figsize=(20, 10))
@@ -885,6 +864,318 @@ plt.show()
 # -
 
 # ## 3. Multi step of 8 node graph with multi partition
+
+# + code_folding=[]
+alpha = 0.85
+target_graph = np.array([[0, 0, 0, 1, 1, 0, 0, 0],
+                                [1, 0, 0, 0, 1, 0, 0, 0],
+                                [0, 1, 0, 0, 0, 1, 0, 0],
+                               [0, 0, 1, 0, 0, 1, 0, 0],
+                               [0, 0, 0, 0, 0, 0, 1, 1],
+                               [0, 0, 0, 0, 0, 0, 1, 1],
+                               [0, 0, 0, 0, 0, 0, 1, 1],
+                               [0, 0, 0, 0, 0, 0, 1, 1]])
+
+
+E = np.array([[0, 0, 0, 1, 1/2, 0, 0, 0],
+                 [1, 0, 0, 0, 1/2, 0, 0, 0],
+                 [0, 1, 0, 0, 0, 1/2, 0, 0],
+                 [0, 0, 1, 0, 0, 1/2, 0, 0],
+                 [0, 0, 0, 0, 0, 0, 1/4, 1/4],
+                 [0, 0, 0, 0, 0, 0, 1/4, 1/4],
+                 [0, 0, 0, 0, 0, 0, 1/4, 1/4],
+                 [0, 0, 0, 0, 0, 0, 1/4, 1/4]])
+# use google matrix
+prob_dist = alpha*E + ((1-alpha)/8)*np.ones((8, 8))
+init_state = 1/np.sqrt(8)*np.array([np.sqrt(prob_dist[j][i]) for i in range(8) for j in range(8)])
+
+
+# +
+# Circuit
+def eight_node_multi(opt, step, initial, hardopt=False):
+    rotation11 = np.radians(31.788)
+    rotation12 = np.radians(23.231)
+    rotation13 = np.radians(163.285)
+    
+    rotation21 = np.radians(31.788)
+    rotation22 = np.radians(23.231)
+    
+    rotation31 = np.radians(148.212)
+    
+#     for multi qubit hadamrd gate
+    hs = QuantumCircuit.ch
+    
+    
+    cq = QuantumRegister(3, 'control')
+    tq = QuantumRegister(3, 'target')
+#     ancilla for mct gates
+    anc = QuantumRegister(3, 'mct anc')
+    c = ClassicalRegister(3, 'classical')
+    if opt:
+        opt_anc = QuantumRegister(2, 'ancilla')
+        qc = QuantumCircuit(cq, tq, anc, opt_anc, c)
+    else:
+        qc = QuantumCircuit(cq, tq, anc, c)
+        
+#     initialize with probability distribution matrix
+    if initial is not None:
+        qc.initialize(initial, [*cq, *tq])
+    
+    for t in range(step):
+        # Ti operation(opt)
+        # T11
+        qc.x(cq[1])
+        qc.mct([cq[1], cq[2]], tq[1], anc)
+        qc.x(cq[1])
+        qc.barrier()
+        
+        # T12
+        qc.x(cq[0])
+        qc.x(cq[2])
+        qc.mct(cq, tq[1], anc)
+        qc.x(cq[0])
+        qc.x(cq[2])
+        qc.barrier()
+        
+        # T21
+        qc.x(cq[0])
+        qc.mct([cq[0], cq[2]], tq[2], anc)
+        qc.x(cq[0])
+        qc.barrier()
+
+#         # Kdg operation
+        if opt:
+            if hardopt:
+                raise Exception('under const')
+            else:
+                # K1dg
+                qc.x(cq[0]) # s1
+                qc.x(tq[0]) # s2
+                qc.mcmt([cq[0], tq[0], tq[1]], anc, hs, [tq[2]])
+                qc.x(tq[1]) # s3
+                qc.mcry(-rotation13, [cq[0], tq[0], tq[1]], tq[2],  anc)
+                qc.x(tq[1]) # e3
+                qc.x(tq[0]) # e2
+                qc.mcmt([cq[0],  tq[0]], anc, hs, [tq[1], tq[2]])
+                qc.x(tq[0]) # s4
+                qc.mcry(-rotation12, [cq[0], tq[0]], tq[1], anc)
+                qc.x(tq[0]) # e4
+                qc.cry(-rotation11, cq[0], tq[0])
+                qc.x(cq[0]) # e1
+                qc.barrier
+                # K2dg
+                # map
+                qc.x(cq[1])
+                qc.ccx(cq[0], cq[1], opt_anc[0])
+                qc.x(cq[1])
+                # op
+                qc.ch(opt_anc[0], tq[2])
+                qc.ry(pi/4, tq[1])
+                qc.ccx(opt_anc[0], tq[0], tq[1])
+                qc.ry(-pi/4, tq[1])
+                qc.x(tq[0])# s1
+                qc.mcry(-rotation22, [opt_anc[0], tq[0]], tq[1], anc)
+                qc.x(tq[0]) # e1
+                qc.cry(-rotation21, opt_anc[0], tq[0])
+                qc.barrier
+                # K3dg
+                #map
+                qc.ccx(cq[0], cq[1], opt_anc[1])
+                # op
+                qc.ch(opt_anc[1], tq[2])
+                qc.ch(opt_anc[1], tq[1])
+                qc.cry(-rotation31, opt_anc[1], tq[0])
+                qc.barrier
+                
+        else:
+            # K1dg
+            qc.x(cq[0]) # s1
+            qc.x(tq[0])  # s2
+            qc.mcmt([cq[0], tq[0], tq[1]], anc, hs, [tq[2]]) # TODO check!
+            qc.x(tq[1]) # s3
+            qc.mcry(-rotation13, [cq[0], tq[0], tq[1]], tq[2], anc) # rotation 3 dg
+            qc.x(tq[1]) # e3
+            qc.x(tq[0]) # e2
+            qc.mcmt([cq[0], tq[0]], anc, hs, [tq[1], tq[2]])
+            qc.x(tq[0]) # s4
+            qc.mcry(-rotation12, [cq[0], tq[0]], tq[1],  anc)
+            qc.x(tq[0]) # e4
+            qc.cry(-rotation11, cq[0], tq[0])
+            # K2dg
+            qc.x(cq[1]) # s1
+            qc.x(tq[0]) # s2
+            qc.mcmt([cq[0], cq[1], tq[0]], anc, hs, [tq[2]])
+            qc.x(tq[0]) # e2
+            qc.mcmt([cq[0], cq[1], tq[0]], anc, hs, [tq[1], tq[2]])
+            qc.x(tq[0]) # s3
+            qc.mcry(-rotation22, [cq[0], cq[1], tq[0]], tq[1], anc)
+            qc.x(tq[0]) # e3
+            qc.mcry(-rotation21, [cq[0], cq[1]], tq[0], anc)
+            # K3dg
+            qc.mcmt([cq[0], cq[1]], anc, hs, [tq[1], tq[2]])
+            qc.mcry(-rotation31, [cq[0], cq[1]], tq[0], anc)
+
+        # D operation
+        qc.x(tq)
+        qc.h(tq[2])
+        qc.ccx(tq[0], tq[1], tq[2])
+        qc.h(tq[2])
+        qc.x(tq)
+        qc.barrier()
+
+#         # K operation
+        if opt:
+            if hardopt:
+                raise Exception('under')
+            else:
+                # K3
+                qc.cry(rotation31, opt_anc[1], tq[0])
+                qc.ch(opt_anc[1], tq[1])
+                qc.ch(opt_anc[1], tq[2])
+                #unmap
+                qc.ccx(cq[1], cq[0], opt_anc[1])
+                qc.barrier
+                # K2
+                qc.cry(rotation21, opt_anc[0], tq[0])
+                qc.x(tq[0]) # s1
+                qc.mcry(rotation22, [opt_anc[0], tq[0]], tq[1], anc)
+                qc.x(tq[0])
+                qc.ry(pi/4, tq[1])
+                qc.ccx(opt_anc[0], tq[0], tq[1])
+                qc.ry(-pi/4, tq[1])
+                qc.ch(opt_anc[0], tq[2])
+                # unmap
+                qc.x(cq[1])
+                qc.ccx(cq[1], cq[0], opt_anc[0])
+                qc.x(cq[1])
+                # op
+                qc.barrier
+                # K1
+                qc.x(cq[0]) # s1
+                qc.cry(rotation11, cq[0], tq[0])
+                qc.x(tq[0]) # s2
+                qc.mcry(rotation12, [cq[0], tq[0]], tq[1], anc)
+                qc.x(tq[0]) # e2
+                qc.mcmt([cq[0], tq[0]], anc, hs, [tq[1], tq[2]])
+                qc.x(tq[0]) #s3
+                qc.x(tq[1]) # s4
+                qc.mcry(rotation13, [cq[0], tq[0], tq[1]], tq[2], anc)
+                qc.x(tq[1]) # 4
+                qc.mcmt([cq[0], tq[0], tq[1]], anc, hs, [tq[2]])
+                qc.x(tq[0]) # e3
+                qc.x(cq[0]) # e1
+                qc.barrier
+        else:
+            # K3
+            qc.mcry(rotation31, [cq[0], cq[1]], tq[0], anc)
+            qc.mcmt([cq[0], cq[1]], anc, hs, [tq[1]])
+            qc.mcmt([cq[0], cq[1]], anc, hs, [tq[2]])
+            # K2
+            qc.mcry(rotation21, [cq[0], cq[1]], tq[0], anc)
+            qc.x(tq[0]) # e3
+            qc.mcry(rotation22, [cq[0], cq[1], tq[0]], tq[1], anc)
+            qc.x(tq[0]) # s3
+            qc.mcmt([cq[0], cq[1], tq[0]], anc, hs, [tq[1]])
+            qc.mcmt([cq[0], cq[1], tq[0]], anc, hs, [tq[2]])
+            qc.x(tq[0]) # e2
+            qc.mcmt([cq[0], cq[1], tq[0]],anc, hs, [tq[2]])
+            qc.x(tq[0]) # s2
+            qc.x(cq[1]) # s1
+            # K1
+            qc.cry(rotation11, cq[0], tq[0])
+            qc.x(tq[0]) # e4
+            qc.mcry(rotation12, [cq[0], tq[0]], tq[1], anc)
+            qc.x(tq[0]) # s4
+            qc.mcmt([cq[0], tq[0]], anc, hs, [tq[1]])
+            qc.mcmt([cq[0], tq[0]], anc, hs, [tq[2]])
+            qc.x(tq[0]) # e2
+            qc.x(tq[1]) # e3
+            qc.mcry(rotation13, [cq[0], tq[0], tq[1]], tq[2], anc) # rotation 3 dg
+            qc.x(tq[1]) # s3
+            qc.mcmt([cq[0], tq[0], tq[1]], anc, hs, [tq[2]]) # instead of ccch
+            qc.x(tq[0])  # s2
+            qc.x(cq[0]) # s1
+        
+        # T21 dg
+        qc.x(cq[0])
+        qc.mct([cq[0], cq[2]], tq[2], anc)
+        qc.x(cq[0])
+        qc.barrier()
+        
+        # T12dg
+        qc.x(cq[0])
+        qc.x(cq[2])
+        qc.mct(cq, tq[1], anc)
+        qc.x(cq[0])
+        qc.x(cq[2])
+        qc.barrier()
+        
+        # T11 dg
+        qc.x(cq[1])
+        qc.mct([cq[0], cq[1]], tq[1], anc)
+        qc.x(cq[1])
+        # swap
+        for cont, targ in zip(cq, tq):
+            qc.swap(cont, targ)
+    qc.measure(cq, c)
+    return qc
+# -
+
+qc = eight_node_multi(True, 1, None)
+qc.draw(output='mpl')
+
+# circuit verifications
+qasm_sim = Aer.get_backend('qasm_simulator')
+init_state = [np.sqrt(1/64) for i in range(64)]
+for step in range(1, 11):
+    opt_qc1 = transpile(eight_node_multi(True, step, init_state), basis_gates=['cx', 'u3'], optimization_level=0)
+    opt_qc2 = transpile(eight_node_multi(True, step, init_state), basis_gates=['cx', 'u3'], optimization_level=3)
+    opt_qc3 = transpile(eight_node_multi(False, step, init_state), basis_gates=['cx', 'u3'], optimization_level=3)
+    nopt_qc = transpile(eight_node_multi(False, step, init_state), basis_gates=['cx', 'u3'], optimization_level=0)
+    job1 = execute(opt_qc1, backend=qasm_sim, shots=10000)
+    job2 = execute(opt_qc2, backend=qasm_sim, shots=10000)
+    job3 = execute(opt_qc3, backend=qasm_sim, shots=10000)
+    job4 = execute(nopt_qc, backend=qasm_sim, shots=10000)
+
+    count1 = job1.result().get_counts()
+    count2 = job2.result().get_counts()
+    count3 = job3.result().get_counts()
+    count4 = job4.result().get_counts()
+    print(count1.get('000'), count2.get('000'), count3.get('000'), count4.get('000'))
+
+# Play ground
+
+q = QuantumRegister(1)
+qc = QuantumCircuit(q)
+rotation12 = np.radians(23.231)
+qc.u3(pi/2+rotation12, 0, pi, q[0])
+unit = Aer.get_backend('unitary_simulator')
+job = execute(qc, backend=unit)
+uni = job.result().get_unitary()
+print(uni)
+
+q = QuantumRegister(1)
+qc = QuantumCircuit(q)
+rotation12 = np.radians(23.231)
+qc.u3(pi/2, 0, pi, q[0])
+qc.ry(rotation12, q[0])
+unit = Aer.get_backend('unitary_simulator')
+job = execute(qc, backend=unit)
+uni = job.result().get_unitary()
+print(uni)
+
+q = QuantumRegister(3,'qr')
+anc = QuantumRegister(2, 'anc')
+qc = QuantumCircuit(q, anc)
+qc.mcmt([q[0], q[1]], anc, QuantumCircuit.ch, [q[2]])
+
+qc.draw(output='mpl')
+
+q = QuantumRegister(6)
+qc = QuantumCircuit(q)
+qc.initialize(init_state, q)
+nqc = transpile(qc, basis_gates=['cx', 'h', 'x', 'u3'])
+nqc.draw(output='mpl')
 
 # ## 4. Multi step of 1024 node graph with multi partition
 
