@@ -271,7 +271,7 @@ def KL_divergence(p, q, torelance=10e-9):
     divergence = np.sum(parray*np.log(parray/qarray))
     return divergence
 
-def get_error(qcs,  ideal, err_model, nq, type='KL', shots=10000):
+def get_error(qcs,  ideal, err_model, nq, type='KL', shots=5000):
     bins = [format(i, '0%db'%nq) for i in range(2**nq)]
     job = execute(qcs, backend=qasm_sim, shots=shots, noise_model=err_model)
     all_counts = [job.result().get_counts(qc) for qc in qcs]
@@ -388,25 +388,29 @@ for ce, st in tqdm(zip(errors, steps)):
         error_model.add_all_qubit_quantum_error(u3_error, ['u3', 'u2'])
         error_model.add_all_qubit_quantum_error(cx_error, ['cx'])
     # ex1
-        opt_qc = [transpile(four_node(True, step), basis_gates=['cx', 'u3'], optimization_level=0) for i in range(exitime)]
-        errors = get_error(opt_qc, ideal_prob, error_model, 2)
+        qcs1 = [four_node(True, step) for i in range(extime)]
+        opt_qc1 = transpile(qcs1, basis_gates=['cx', 'u3'], optimization_level=0)
+        errors = get_error(opt_qc1, ideal_prob, error_model, 2)
         ex1_mean.append(np.mean(errors))
         ex1_std.append(np.std(errors))
 
 #     ex2
-        opt_qc = [transpile(four_node(True, step), basis_gates=['cx', 'u3'], optimization_level=3) for i in range(extime)]
-        errors = get_error(opt_qc, ideal_prob, error_model, 2)
+        qcs2 = [four_node(True, step) for i in range(extime)]
+        opt_qc2 = transpile(qcs2, basis_gates=['cx', 'u3'], optimization_level=3)
+        errors = get_error(opt_qc2, ideal_prob, error_model, 2)
         ex2_mean.append(np.mean(errors))
         ex2_std.append(np.std(errors))
 
 # ex3
-        opt_qc = [transpile(four_node(False, step), basis_gates=['cx', 'u3'], optimization_level=3) for i in range(extime)]
+        qcs3 = [four_node(False, step) for i in range(extime)]
+        opt_qc3 = transpile(qcs3, basis_gates=['cx', 'u3'], optimization_level=3)
         errors = get_error(opt_qc, ideal_prob, error_model, 2)
         ex3_mean.append(np.mean(errors))
         ex3_std.append(np.std(errors))
 
     #     ex4
-        nopt_qc = [transpile(four_node(False, step), basis_gates=['cx', 'u3'], optimization_level=0) for i in range(10)]
+        qcs4 = [four_node(False, step) for i in range(extime)]
+        nopt_qc = transpile(qcs4, basis_gates=['cx', 'u3'], optimization_level=0)
         error = get_error(nopt_qc, ideal_prob, error_model, 2)
         ex4_mean.append(np.mean(errors))
         ex4_std.append(np.std(errors))
