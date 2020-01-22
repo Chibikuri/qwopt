@@ -238,7 +238,7 @@ for step in trange(1, 11):
 # -
 
 cx = [ex1_cx, ex2_cx, ex3_cx, ex4_cx]
-u3 = [ex1_u3, ex2_cx, ex3_u3, ex4_u3]
+u3 = [ex1_u3, ex2_u3, ex3_u3, ex4_u3]
 color = ['#C23685',  '#E38692', '#6BBED5', '#3EBA2B']
 labels = ['with my optimizations', 'with my and qiskit optimizations', 'with qiskit optimizations', 'without optimizations']
 steps = range(1, 11)
@@ -271,17 +271,14 @@ def KL_divergence(p, q, torelance=10e-9):
     divergence = np.sum(parray*np.log(parray/qarray))
     return divergence
 
-def get_error(qcs,  ideal, err_model, nq, type='KL', shots=5000):
+def get_error(qc,  ideal, err_model, nq, type='KL', shots=5000):
     bins = [format(i, '0%db'%nq) for i in range(2**nq)]
-    job = execute(qcs, backend=qasm_sim, shots=shots, noise_model=err_model)
-    all_counts = [job.result().get_counts(qc) for qc in qcs]
-    errors = []
-    for counts in all_counts:
-        prob = np.array([counts.get(b, 0)/shots for b in bins])
-        id_prob = np.array(ideal)
+    job = execute(qc, backend=qasm_sim, shots=shots, noise_model=err_model)
+    counts = job.result().get_counts(qc)
+    prob = np.array([counts.get(b, 0)/shots for b in bins])
+    id_prob = np.array(ideal)
 #         l2_error = np.sum([(i-j)**2 for i, j in zip(id_prob, prob)])
-        KL_error = KL_divergence(id_prob, prob)
-        errors.append(KL_error)
+    KL_error = KL_divergence(id_prob, prob)
     return KL_error
 
 def theoretical_prob(initial, step, ptran, nq):
@@ -337,24 +334,23 @@ def Pi_operator(ptran):
     return Pi
 
 
-# -
-
+# +
 # circuit verifications
-for step in range(1, 11):
-    opt_qc1 = transpile(four_node(True, step), basis_gates=['cx', 'u3'], optimization_level=0)
-    opt_qc2 = transpile(four_node(True, step), basis_gates=['cx', 'u3'], optimization_level=3)
-    opt_qc3 = transpile(four_node(False, step), basis_gates=['cx', 'u3'], optimization_level=3)
-    nopt_qc = transpile(four_node(False, step), basis_gates=['cx', 'u3'], optimization_level=0)
-    job1 = execute(opt_qc1, backend=qasm_sim, shots=10000)
-    job2 = execute(opt_qc2, backend=qasm_sim, shots=10000)
-    job3 = execute(opt_qc3, backend=qasm_sim, shots=10000)
-    job4 = execute(nopt_qc, backend=qasm_sim, shots=10000)
+# for step in range(1, 11):
+#     opt_qc1 = transpile(four_node(True, step), basis_gates=['cx', 'u3'], optimization_level=0)
+#     opt_qc2 = transpile(four_node(True, step), basis_gates=['cx', 'u3'], optimization_level=3)
+#     opt_qc3 = transpile(four_node(False, step), basis_gates=['cx', 'u3'], optimization_level=3)
+#     nopt_qc = transpile(four_node(False, step), basis_gates=['cx', 'u3'], optimization_level=0)
+#     job1 = execute(opt_qc1, backend=qasm_sim, shots=10000)
+#     job2 = execute(opt_qc2, backend=qasm_sim, shots=10000)
+#     job3 = execute(opt_qc3, backend=qasm_sim, shots=10000)
+#     job4 = execute(nopt_qc, backend=qasm_sim, shots=10000)
 
-    count1 = job1.result().get_counts()
-    count2 = job2.result().get_counts()
-    count3 = job3.result().get_counts()
-    count4 = job4.result().get_counts()
-    print(count1.get('00'), count2.get('00'), count3.get('00'), count4.get('00'))
+#     count1 = job1.result().get_counts()
+#     count2 = job2.result().get_counts()
+#     count3 = job3.result().get_counts()
+#     count4 = job4.result().get_counts()
+#     print(count1.get('00'), count2.get('00'), count3.get('00'), count4.get('00'))
 
 # +
 ex1_mean = []
@@ -370,50 +366,131 @@ ex4_mean = []
 ex4_std = []
 extime = 10
 
-u3_error = depolarizing_error(0, 1)
-qw_step = range(1,6)
-gate_error = np.arange(0, 0.1, 0.01)
-errors, steps= np.meshgrid(gate_error, qw_step)
+u3_error = depolarizing_error(0.001, 1)
+qw_step = range(1, 11)
+gate_error = np.arange(0, 0.1, 0.001)
+# errors, steps= np.meshgrid(gate_error, qw_step)
 
 bins = [format(i, '02b') for i in range(2**2)]
-for ce, st in tqdm(zip(errors, steps)):
-    opt_qc = four_node(True, st[0])
-    job = execute(opt_qc, backend=qasm_sim, shots=100000)
-    count = job.result().get_counts(opt_qc)
-    ideal_prob = [count.get(i, 0)/100000 for i in bins]
-    for cxerr, step in zip(ce, st):        
-    # noise model
-        error_model = NoiseModel()
-        cx_error = depolarizing_error(cxerr, 2)
-        error_model.add_all_qubit_quantum_error(u3_error, ['u3', 'u2'])
-        error_model.add_all_qubit_quantum_error(cx_error, ['cx'])
-    # ex1
-        qcs1 = [four_node(True, step) for i in range(extime)]
-        opt_qc1 = transpile(qcs1, basis_gates=['cx', 'u3'], optimization_level=0)
-        errors = get_error(opt_qc1, ideal_prob, error_model, 2)
-        ex1_mean.append(np.mean(errors))
-        ex1_std.append(np.std(errors))
+step = 3
+opt_qc = four_node(True, step)
+job = execute(opt_qc, backend=qasm_sim, shots=100000)
+count = job.result().get_counts(opt_qc)
+ideal_prob = [count.get(i, 0)/100000 for i in bins]
+for cxerr in tqdm(gate_error):
+# noise model
+    error_model = NoiseModel()
+    cx_error = depolarizing_error(cxerr, 2)
+    error_model.add_all_qubit_quantum_error(u3_error, ['u3', 'u2'])
+    error_model.add_all_qubit_quantum_error(cx_error, ['cx'])
+# ex1
+    errors = []
+    for i in range(extime):
+        opt_qc = transpile(four_node(True, step), basis_gates=['cx', 'u3'], optimization_level=0)
+        error = get_error(opt_qc, ideal_prob, error_model, 2)
+        errors.append(error)
+    ex1_mean.append(np.mean(errors))
+    ex1_std.append(np.std(errors))
 
 #     ex2
-        qcs2 = [four_node(True, step) for i in range(extime)]
-        opt_qc2 = transpile(qcs2, basis_gates=['cx', 'u3'], optimization_level=3)
-        errors = get_error(opt_qc2, ideal_prob, error_model, 2)
-        ex2_mean.append(np.mean(errors))
-        ex2_std.append(np.std(errors))
+    errors = []
+    for i in range(extime):
+        opt_qc = transpile(four_node(True, step), basis_gates=['cx', 'u3'], optimization_level=3)
+        error = get_error(opt_qc, ideal_prob, error_model, 2)
+        errors.append(error)
+    ex2_mean.append(np.mean(errors))
+    ex2_std.append(np.std(errors))
 
 # ex3
-        qcs3 = [four_node(False, step) for i in range(extime)]
-        opt_qc3 = transpile(qcs3, basis_gates=['cx', 'u3'], optimization_level=3)
-        errors = get_error(opt_qc, ideal_prob, error_model, 2)
-        ex3_mean.append(np.mean(errors))
-        ex3_std.append(np.std(errors))
+    errors = []
+    for i in range(extime):
+        opt_qc = transpile(four_node(False, step), basis_gates=['cx', 'u3'], optimization_level=3)
+        error = get_error(opt_qc, ideal_prob, error_model, 2)
+        errors.append(error)
+    ex3_mean.append(np.mean(errors))
+    ex3_std.append(np.std(errors))
 
-    #     ex4
-        qcs4 = [four_node(False, step) for i in range(extime)]
-        nopt_qc = transpile(qcs4, basis_gates=['cx', 'u3'], optimization_level=0)
+#     ex4
+    errors=[]
+    for i in range(extime):
+        nopt_qc = transpile(four_node(False, step), basis_gates=['cx', 'u3'], optimization_level=0)
         error = get_error(nopt_qc, ideal_prob, error_model, 2)
-        ex4_mean.append(np.mean(errors))
-        ex4_std.append(np.std(errors))
+        errors.append(error)
+    ex4_mean.append(np.mean(errors))
+    ex4_std.append(np.std(errors))
+
+# +
+fig = plt.figure(figsize=(20, 10))
+
+plt.errorbar(gate_error, ex1_mean, yerr=ex1_std, label='With my optimizations')
+plt.errorbar(gate_error, ex2_mean, yerr=ex2_std, label='With my and qiskit optimizations')
+plt.errorbar(gate_error, ex3_mean, yerr=ex3_std, label='With qiskit optimizations')
+plt.errorbar(gate_error, ex4_mean, yerr=ex4_std, label='Without optimizations')
+plt.title('error investigation of 3step Quantum Walk', fontsize=30)
+plt.xlabel('cx error rate', fontsize=30)
+plt.ylabel('KL divergence')
+plt.tick_params(labelsize=20)
+plt.legend(fontsize=20)
+plt.show()
+
+# +
+# ex1_mean = []
+# ex1_std = []
+
+# ex2_mean = []
+# ex2_std = []
+
+# ex3_mean = []
+# ex3_std = []
+
+# ex4_mean = []
+# ex4_std = []
+# extime = 10
+
+# u3_error = depolarizing_error(0, 1)
+# qw_step = range(1,6)
+# gate_error = np.arange(0, 0.1, 0.01)
+# errors, steps= np.meshgrid(gate_error, qw_step)
+
+# bins = [format(i, '02b') for i in range(2**2)]
+# for ce, st in tqdm(zip(errors, steps)):
+#     opt_qc = four_node(True, st[0])
+#     job = execute(opt_qc, backend=qasm_sim, shots=100000)
+#     count = job.result().get_counts(opt_qc)
+#     ideal_prob = [count.get(i, 0)/100000 for i in bins]
+#     for cxerr, step in zip(ce, st):        
+#     # noise model
+#         error_model = NoiseModel()
+#         cx_error = depolarizing_error(cxerr, 2)
+#         error_model.add_all_qubit_quantum_error(u3_error, ['u3', 'u2'])
+#         error_model.add_all_qubit_quantum_error(cx_error, ['cx'])
+#     # ex1
+#         qcs1 = [four_node(True, step) for i in range(extime)]
+#         opt_qc1 = transpile(qcs1, basis_gates=['cx', 'u3'], optimization_level=0)
+#         errors = get_error(opt_qc1, ideal_prob, error_model, 2)
+#         ex1_mean.append(np.mean(errors))
+#         ex1_std.append(np.std(errors))
+
+# #     ex2
+#         qcs2 = [four_node(True, step) for i in range(extime)]
+#         opt_qc2 = transpile(qcs2, basis_gates=['cx', 'u3'], optimization_level=3)
+#         errors = get_error(opt_qc2, ideal_prob, error_model, 2)
+#         ex2_mean.append(np.mean(errors))
+#         ex2_std.append(np.std(errors))
+
+# # ex3
+#         qcs3 = [four_node(False, step) for i in range(extime)]
+#         opt_qc3 = transpile(qcs3, basis_gates=['cx', 'u3'], optimization_level=3)
+#         errors = get_error(opt_qc, ideal_prob, error_model, 2)
+#         ex3_mean.append(np.mean(errors))
+#         ex3_std.append(np.std(errors))
+
+#     #     ex4
+#         qcs4 = [four_node(False, step) for i in range(extime)]
+#         nopt_qc = transpile(qcs4, basis_gates=['cx', 'u3'], optimization_level=0)
+#         error = get_error(nopt_qc, ideal_prob, error_model, 2)
+#         ex4_mean.append(np.mean(errors))
+#         ex4_std.append(np.std(errors))
 # -
 
 # ### plot 3d

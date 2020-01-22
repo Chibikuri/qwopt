@@ -120,6 +120,28 @@ ideal = theoretical_prob(initial, 2, prob_dist, 6)
 for i, v in enumerate(ideal):
     print(i, v)
 
+import networkx as nx
+import matplotlib.pyplot as plt
 
+target_graph = np.array([[0, 1, 0, 1],
+                                [0, 0, 1, 0],
+                                [0, 1, 0, 1],
+                                [0, 0, 1, 0]])
+G = nx.from_numpy_matrix(target_graph)
+pos = nx.layout.spring_layout(G)
+nodes = nx.draw_networkx_nodes(G, pos, node_size=1000)
+edges = nx.draw_networkx_edges(G, pos, node_size=1000, arrowstyle='->',
+                               arrowsize=10, edge_cmap=plt.cm.Blues, width=2)
+
+target_graph = np.array([[0, 1, 0, 0, 0, 0, 0, 1],
+                                [0, 0, 1, 0, 0, 0, 0, 0],
+                                [0, 1, 0, 1, 0, 0, 0, 0],
+                                [0, 0, 1, 0, 1, 0, 0, 0],
+                                [0, 0, 0, 1, 0, 1, 0, 0],
+                                [0, 0, 0, 0, 1, 0, 1, 0],
+                                [0, 0, 0, 0, 0, 1, 0, 1],
+                                [0, 0, 0, 0, 0, 0, 1, 0]])
+G = nx.from_numpy_matrix(target_graph)
+nx.draw(G)
 
 
