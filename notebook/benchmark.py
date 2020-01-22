@@ -271,7 +271,7 @@ def KL_divergence(p, q, torelance=10e-9):
     divergence = np.sum(parray*np.log(parray/qarray))
     return divergence
 
-def get_error(qc,  ideal, err_model, nq, type='KL', shots=5000):
+def get_error(qc,  ideal, err_model, nq, type='KL', shots=10000):
     bins = [format(i, '0%db'%nq) for i in range(2**nq)]
     job = execute(qc, backend=qasm_sim, shots=shots, noise_model=err_model)
     counts = job.result().get_counts(qc)
@@ -372,7 +372,7 @@ gate_error = np.arange(0, 0.1, 0.001)
 # errors, steps= np.meshgrid(gate_error, qw_step)
 
 bins = [format(i, '02b') for i in range(2**2)]
-step = 3
+step = 1
 opt_qc = four_node(True, step)
 job = execute(opt_qc, backend=qasm_sim, shots=100000)
 count = job.result().get_counts(opt_qc)
@@ -947,7 +947,7 @@ E = np.array([[0, 0, 0, 1, 1/2, 0, 0, 0],
                  [0, 0, 0, 0, 0, 0, 1/4, 1/4]])
 # use google matrix
 prob_dist = alpha*E + ((1-alpha)/8)*np.ones((8, 8))
-init_state = 1/np.sqrt(8)*np.array([np.sqrt(prob_dist[j][i]) for i in range(8) for j in range(8)])
+init_state_eight = 1/np.sqrt(8)*np.array([np.sqrt(prob_dist[j][i]) for i in range(8) for j in range(8)])
 
 
 # -
@@ -966,6 +966,24 @@ def mch(qc, controls, target, anc, tganc):
             qc.ch(tganc[0], tg)
         qc.mct(controls, tganc[0], anc)
     return qc
+
+
+q = QuantumRegister(6)
+anc = QuantumRegister(3)
+tganc = QuantumRegister(1)
+c = ClassicalRegister(10)
+qc = QuantumCircuit(q, anc, tganc, c)
+mch(qc, [q[0], q[3]], [q[4], q[5]], anc, tganc)
+qc.barrier()
+qc.draw(output='mpl')
+qc.measure(q, c[:6])
+qc.measure(anc, c[6:9])
+qc.measure(tganc, c[9])
+job = execute(qc, backend=qasm_sim, shots=1024)
+count = job.result().get_counts(qc)
+print(count)
+
+qc.draw(output='mpl')
 
 
 # +
@@ -1004,7 +1022,7 @@ def eight_node_multi(opt, step, initial, hardopt=False):
         # Ti operation(opt)
         # T11
         qc.x(cq[1])
-        qc.mct([cq[1], cq[2]], tq[1], anc)
+        qc.ccx(cq[1], cq[2], tq[1])
         qc.x(cq[1])
         qc.barrier()
         
@@ -1018,7 +1036,7 @@ def eight_node_multi(opt, step, initial, hardopt=False):
         
         # T21
         qc.x(cq[0])
-        qc.mct([cq[0], cq[2]], tq[2], anc)
+        qc.ccx(cq[0], cq[2], tq[2])
         qc.x(cq[0])
         qc.barrier()
 
@@ -1034,7 +1052,9 @@ def eight_node_multi(opt, step, initial, hardopt=False):
                 mch(qc, [cq[0], tq[0], tq[1]], [tq[2]], anc, tganc)
                 
                 qc.x(tq[1]) # s3
+                
                 qc.mcry(-rotation13, [cq[0], tq[0], tq[1]], tq[2],  anc)
+                
                 qc.x(tq[1]) # e3
                 qc.x(tq[0]) # e2
                 
@@ -1043,19 +1063,20 @@ def eight_node_multi(opt, step, initial, hardopt=False):
                 qc.x(tq[0]) # s4
                 qc.mcry(-rotation12, [cq[0], tq[0]], tq[1], anc)
                 qc.x(tq[0]) # e4
+
                 qc.cry(-rotation11, cq[0], tq[0])
                 qc.x(cq[0]) # e1
                 qc.barrier
+
                 # K2dg
                 # map
                 qc.x(cq[1])
-                qc.ccx(cq[0], cq[1], opt_anc[0])
+                qc.ccx(cq[1], cq[0], opt_anc[0])
                 qc.x(cq[1])
                 # op
                 qc.ch(opt_anc[0], tq[2])
-                qc.ry(pi/4, tq[1])
-                qc.ccx(opt_anc[0], tq[0], tq[1])
-                qc.ry(-pi/4, tq[1])
+                mch(qc, [opt_anc[0], tq[0]], tq[1], anc, tganc)
+
                 qc.x(tq[0])# s1
                 qc.mcry(-rotation22, [opt_anc[0], tq[0]], tq[1], anc)
                 qc.x(tq[0]) # e1
@@ -1063,7 +1084,7 @@ def eight_node_multi(opt, step, initial, hardopt=False):
                 qc.barrier
                 # K3dg
                 #map
-                qc.ccx(cq[0], cq[1], opt_anc[1])
+                qc.ccx(cq[1], cq[0], opt_anc[1])
                 # op
                 qc.ch(opt_anc[1], tq[2])
                 qc.ch(opt_anc[1], tq[1])
@@ -1088,6 +1109,7 @@ def eight_node_multi(opt, step, initial, hardopt=False):
             qc.mcry(-rotation12, [cq[0], tq[0]], tq[1],  anc)
             qc.x(tq[0]) # e4
             qc.cry(-rotation11, cq[0], tq[0])
+            qc.x(cq[0]) # e1
             # K2dg
             qc.x(cq[1]) # s1
             qc.x(tq[0]) # s2
@@ -1102,6 +1124,7 @@ def eight_node_multi(opt, step, initial, hardopt=False):
             qc.mcry(-rotation22, [cq[0], cq[1], tq[0]], tq[1], anc)
             qc.x(tq[0]) # e3
             qc.mcry(-rotation21, [cq[0], cq[1]], tq[0], anc)
+            qc.x(cq[1])
             # K3dg
             
             mch(qc, [cq[0], cq[1]], [tq[1], tq[2]], anc, tganc)
@@ -1127,15 +1150,13 @@ def eight_node_multi(opt, step, initial, hardopt=False):
                 qc.ch(opt_anc[1], tq[2])
                 #unmap
                 qc.ccx(cq[1], cq[0], opt_anc[1])
-                qc.barrier
+                qc.barrier()
                 # K2
                 qc.cry(rotation21, opt_anc[0], tq[0])
                 qc.x(tq[0]) # s1
                 qc.mcry(rotation22, [opt_anc[0], tq[0]], tq[1], anc)
                 qc.x(tq[0])
-                qc.ry(pi/4, tq[1])
-                qc.ccx(opt_anc[0], tq[0], tq[1])
-                qc.ry(-pi/4, tq[1])
+                mch(qc, [opt_anc[0], tq[0]], tq[1], anc, tganc)
                 qc.ch(opt_anc[0], tq[2])
                 # unmap
                 qc.x(cq[1])
@@ -1165,24 +1186,22 @@ def eight_node_multi(opt, step, initial, hardopt=False):
         else:
             # K3
             qc.mcry(rotation31, [cq[0], cq[1]], tq[0], anc)
-            
-            mch(qc, [cq[0], cq[1]], [tq[1]], anc, tganc)
-            mch(qc, [cq[0], cq[1]], [tq[2]], anc, tganc)
+            mch(qc, [cq[0], cq[1]], [tq[1], tq[2]], anc, tganc)
             
             # K2
+            qc.x(cq[1])
             qc.mcry(rotation21, [cq[0], cq[1]], tq[0], anc)
             qc.x(tq[0]) # e3
             qc.mcry(rotation22, [cq[0], cq[1], tq[0]], tq[1], anc)
             qc.x(tq[0]) # s3
             
-            mch(qc, [cq[0], cq[1], tq[0]], [tq[1]], anc, tganc)
-            mch(qc, [cq[0], cq[1], tq[0]], [tq[2]], anc, tganc)
+            mch(qc, [cq[0], cq[1], tq[0]], [tq[1], tq[2]], anc, tganc)
             
             qc.x(tq[0]) # e2
-            
             mch(qc, [cq[0], cq[1], tq[0]], [tq[2]], anc, tganc)
             
             qc.x(tq[0]) # s2
+            qc.x(cq[0])
             qc.x(cq[1]) # s1
             # K1
             qc.cry(rotation11, cq[0], tq[0])
@@ -1190,8 +1209,7 @@ def eight_node_multi(opt, step, initial, hardopt=False):
             qc.mcry(rotation12, [cq[0], tq[0]], tq[1], anc)
             qc.x(tq[0]) # s4
             
-            mch(qc, [cq[0], tq[0]], [tq[2]], anc, tganc)
-            mch(qc, [cq[0], tq[0]], [tq[2]], anc, tganc)
+            mch(qc, [cq[0], tq[0]], [tq[1], tq[2]], anc, tganc)
             
             qc.x(tq[0]) # e2
             qc.x(tq[1]) # e3
@@ -1205,7 +1223,7 @@ def eight_node_multi(opt, step, initial, hardopt=False):
         
         # T21 dg
         qc.x(cq[0])
-        qc.mct([cq[0], cq[2]], tq[2], anc)
+        qc.ccx(cq[0], cq[2], tq[2])
         qc.x(cq[0])
         qc.barrier()
         
@@ -1219,7 +1237,7 @@ def eight_node_multi(opt, step, initial, hardopt=False):
         
         # T11 dg
         qc.x(cq[1])
-        qc.mct([cq[0], cq[1]], tq[1], anc)
+        qc.ccx(cq[0], cq[1], tq[1])
         qc.x(cq[1])
         # swap
         for cont, targ in zip(cq, tq):
@@ -1249,6 +1267,153 @@ for step in range(1, 11):
     count3 = job3.result().get_counts()
     count4 = job4.result().get_counts()
     print(count1.get('000'), count2.get('000'), count3.get('000'), count4.get('000'))
+
+# +
+ex1_cx = []
+ex1_u3 = []
+
+ex2_cx = []
+ex2_u3 = []
+
+ex3_cx = []
+ex3_u3 = []
+
+ex4_cx = []
+ex4_u3 = []
+
+for step in trange(1, 11):
+    opt_qc = transpile(eight_node_multi(True, step, None), basis_gates=['cx', 'u3'], optimization_level=0)
+    ncx = opt_qc.count_ops().get('cx', 0)
+    nu3 = opt_qc.count_ops().get('u3', 0) + opt_qc.count_ops().get('u2', 0) + opt_qc.count_ops().get('u1', 0)
+    ex1_cx.append(ncx)
+    ex1_u3.append(nu3)
+
+#     ex2
+    opt_qc = transpile(eight_node_multi(True, step, None), basis_gates=['cx', 'u3'], optimization_level=3)
+    ncx = opt_qc.count_ops().get('cx', 0)
+    nu3 = opt_qc.count_ops().get('u3', 0) + opt_qc.count_ops().get('u2', 0) + opt_qc.count_ops().get('u1', 0)
+    ex2_cx.append(ncx)
+    ex2_u3.append(nu3)
+    
+# ex3
+    opt_qc = transpile(eight_node_multi(False, step, None), basis_gates=['cx', 'u3'], optimization_level=3)
+    ncx = opt_qc.count_ops().get('cx', 0)
+    nu3 = opt_qc.count_ops().get('u3', 0) + opt_qc.count_ops().get('u2', 0) + opt_qc.count_ops().get('u1', 0)
+    ex3_cx.append(ncx)
+    ex3_u3.append(nu3)
+
+    #     ex4
+    nopt_qc = transpile(eight_node_multi(False, step, None), basis_gates=['cx', 'u3'], optimization_level=0)
+    ncx = nopt_qc.count_ops().get('cx', 0)
+    nu3 = nopt_qc.count_ops().get('u3', 0) + nopt_qc.count_ops().get('u2', 0) + nopt_qc.count_ops().get('u1', 0)
+    ex4_cx.append(ncx)
+    ex4_u3.append(nu3)
+# -
+
+qc = eight_node_multi(False, 1, None)
+print(qc.depth())
+qc = eight_node_multi(False, 2, None)
+print(qc.depth())
+
+cx = [ex1_cx, ex4_cx]
+u3 = [ex1_u3, ex4_u3]
+color = ['#C23685', '#6BBED5', '#3EBA2B']
+labels = ['with my optimizations', 'related works[6]']
+steps = range(1, 11)
+fig = plt.figure(figsize=(20, 10))
+ax = fig.add_subplot(111)
+sns.set()
+plt.xlabel('the number of steps', fontsize=30)
+plt.yticks(range(0, 4600, 200))
+plt.xticks(range(0, 11, 1))
+plt.ylabel('the number of cx', fontsize=30)
+plt.title('the nuber of operations over steps', fontsize=30)
+plt.tick_params(labelsize=20)
+for cs, col, lab in zip(cx, color, labels):
+    plt.plot(steps, cs, color=col, label=lab, linewidth=3)
+plt.legend(fontsize=25)
+
+# +
+ex1_mean = []
+ex1_std = []
+
+ex2_mean = []
+ex2_std = []
+
+ex3_mean = []
+ex3_std = []
+
+ex4_mean = []
+ex4_std = []
+extime = 10
+
+u3_error = depolarizing_error(0, 1)
+qw_step = range(1, 11)
+gate_error = np.arange(0, 0.1, 0.001)
+# errors, steps= np.meshgrid(gate_error, qw_step)
+
+bins = [format(i, '03b') for i in range(2**3)]
+step = 3
+opt_qc = eight_node_multi(True, step, init_state_eight)
+job = execute(opt_qc, backend=qasm_sim, shots=100000)
+count = job.result().get_counts(opt_qc)
+ideal_prob = [count.get(i, 0)/100000 for i in bins]
+for cxerr in tqdm(gate_error):
+# noise model
+    error_model = NoiseModel()
+    cx_error = depolarizing_error(cxerr, 2)
+    error_model.add_all_qubit_quantum_error(u3_error, ['u3', 'u2'])
+    error_model.add_all_qubit_quantum_error(cx_error, ['cx'])
+# ex1
+
+    opt_qc = transpile(eight_node_multi(True, step, init_state_eight), basis_gates=['cx', 'u3'], optimization_level=0)
+    errors = []
+    for i in range(extime):
+        error = get_error(opt_qc, ideal_prob, error_model, 3)
+        errors.append(error)
+    ex1_mean.append(np.mean(errors))
+    ex1_std.append(np.std(errors))
+
+#     ex2
+    opt_qc = transpile(eight_node_multi(True, step, init_state_eight), basis_gates=['cx', 'u3'], optimization_level=3)
+    errors = []
+    for i in range(extime):
+        error = get_error(opt_qc, ideal_prob, error_model, 3)
+        errors.append(error)
+    ex2_mean.append(np.mean(errors))
+    ex2_std.append(np.std(errors))
+
+# ex3
+    opt_qc = transpile(eight_node_multi(False, step, init_state_eight), basis_gates=['cx', 'u3'], optimization_level=3)
+    errors = []
+    for i in range(extime):
+        error = get_error(opt_qc, ideal_prob, error_model, 3)
+        errors.append(error)
+    ex3_mean.append(np.mean(errors))
+    ex3_std.append(np.std(errors))
+
+#     ex4
+    nopt_qc = transpile(eight_node_multi(False, step, init_state_eight), basis_gates=['cx', 'u3'], optimization_level=0)
+    for i in range(extime):
+        error = get_error(nopt_qc, ideal_prob, error_model, 3)
+        errors.append(error)
+    ex4_mean.append(np.mean(errors))
+    ex4_std.append(np.std(errors))
+
+# +
+fig = plt.figure(figsize=(20, 10))
+
+plt.errorbar(gate_error, ex1_mean, yerr=ex1_std, label='With my optimizations')
+plt.errorbar(gate_error, ex2_mean, yerr=ex2_std, label='With my and qiskit optimizations')
+plt.errorbar(gate_error, ex3_mean, yerr=ex3_std, label='With qiskit optimizations')
+plt.errorbar(gate_error, ex4_mean, yerr=ex4_std, label='Without optimizations')
+plt.title('error investigation of 3step Quantum Walk', fontsize=30)
+plt.xlabel('cx error rate', fontsize=30)
+plt.ylabel('KL divergence')
+plt.tick_params(labelsize=20)
+plt.legend(fontsize=20)
+plt.show()
+# -
 
 # Play ground
 
@@ -1284,6 +1449,6 @@ qc.initialize(init_state, q)
 nqc = transpile(qc, basis_gates=['cx', 'h', 'x', 'u3'])
 nqc.draw(output='mpl')
 
-# ## 4. Multi step of 1024 node graph with multi partition
+# ## 4. Multi step of 512 node graph with multi partition
 
 

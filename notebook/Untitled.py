@@ -127,12 +127,15 @@ target_graph = np.array([[0, 1, 0, 1],
                                 [0, 0, 1, 0],
                                 [0, 1, 0, 1],
                                 [0, 0, 1, 0]])
-G = nx.from_numpy_matrix(target_graph)
-pos = nx.layout.spring_layout(G)
-nodes = nx.draw_networkx_nodes(G, pos, node_size=1000)
-edges = nx.draw_networkx_edges(G, pos, node_size=1000, arrowstyle='->',
-                               arrowsize=10, edge_cmap=plt.cm.Blues, width=2)
+Gs = nx.from_numpy_matrix(target_graph)
+G = nx.MultiDiGraph()
+pos = [(1, 1), (5, 1), (5, 5), (1, 5)]
+G.add_edges_from(Gs.edges())
+plt.figure(figsize=(8,8))
+nx.draw_networkx(G, pos, node_size=1000, width=3, arrowsize=50)
+plt.show()
 
+# +
 target_graph = np.array([[0, 1, 0, 0, 0, 0, 0, 1],
                                 [0, 0, 1, 0, 0, 0, 0, 0],
                                 [0, 1, 0, 1, 0, 0, 0, 0],
@@ -141,7 +144,38 @@ target_graph = np.array([[0, 1, 0, 0, 0, 0, 0, 1],
                                 [0, 0, 0, 0, 1, 0, 1, 0],
                                 [0, 0, 0, 0, 0, 1, 0, 1],
                                 [0, 0, 0, 0, 0, 0, 1, 0]])
-G = nx.from_numpy_matrix(target_graph)
-nx.draw(G)
+
+Gs = nx.from_numpy_matrix(target_graph)
+G = nx.MultiDiGraph()
+# pos = [(1, 1), (2, 2), (3, 3), (1, 5), (2, 2), (6, 2), (6, 6), (2, 6)]
+pos = [(0, 0), (1, 1), (2, 2), (1000, 3), (0, 4), (-1, 3), (-2, 2), (-1, 1)]
+G.add_edges_from(Gs.edges())
+# pos = nx.spring_layout(G)
+plt.figure(figsize=(8,8))
+nx.draw_networkx(G, pos, node_size=1000, width=3, arrowsize=50)
+plt.show()
+
+# +
+target_graph = np.array([[0, 0, 0, 1, 1, 0, 0, 0],
+                                [1, 0, 0, 0, 1, 0, 0, 0],
+                                [0, 1, 0, 0, 0, 1, 0, 0],
+                               [0, 0, 1, 0, 0, 1, 0, 0],
+                               [0, 0, 0, 0, 0, 0, 1, 1],
+                               [0, 0, 0, 0, 0, 0, 1, 1],
+                               [0, 0, 0, 0, 0, 0, 1, 1],
+                               [0, 0, 0, 0, 0, 0, 1, 1]])
+
+Gs = nx.from_numpy_matrix(target_graph)
+print(Gs.edges())
+G = nx.MultiDiGraph()
+# pos = [(1, 1), (2, 2), (3, 3), (1, 5), (2, 2), (6, 2), (6, 6), (2, 6)]
+pos = [(0, 0), (3, 3), (2, 9), (-1, 5), (5, 1), (4, 5), (8, 5), (9, 3)]
+G.add_edges_from(Gs.edges())
+G.add_edges_from([(7, 6)])
+# pos = nx.spring_layout(G, k=10)
+plt.figure(figsize=(10, 10))
+nx.draw_networkx(G, pos, node_size=1000, width=3, arrowsize=50)
+plt.show()
+# -
 
 
