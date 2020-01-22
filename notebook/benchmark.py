@@ -371,16 +371,16 @@ ex4_std = []
 extime = 10
 
 u3_error = depolarizing_error(0, 1)
-qw_step = range(1, 11)
+qw_step = range(1,6)
 gate_error = np.arange(0, 0.1, 0.01)
 errors, steps= np.meshgrid(gate_error, qw_step)
 
 bins = [format(i, '02b') for i in range(2**2)]
 for ce, st in tqdm(zip(errors, steps)):
     opt_qc = four_node(True, st[0])
-    job = execute(opt_qc, backend=qasm_sim, shots=10000)
+    job = execute(opt_qc, backend=qasm_sim, shots=100000)
     count = job.result().get_counts(opt_qc)
-    ideal_prob = [count.get(i, 0)/10000 for i in bins]
+    ideal_prob = [count.get(i, 0)/100000 for i in bins]
     for cxerr, step in zip(ce, st):        
     # noise model
         error_model = NoiseModel()
@@ -438,41 +438,7 @@ ax.set_zlabel('Error', labelpad=30, fontsize=30)
 plt.tick_params(labelsize=20)
 plt.legend(fontsize=20)
 plt.show()
-
-# +
-# step = range(1, 10)
-# sns.set()
-# fig, ax = plt.subplots(figsize = (20, 10))
-# plt.xlabel('steps', fontsize=30)
-# plt.ylabel('the number of cx and u3', fontsize=30)
-# plt.tick_params(labelsize=20)
-# plt.plot(step, two_opt, label='optimized cx', color='#E6855E', linewidth=3)
-# plt.plot(step, one_opt, label='optimized u3', color='#E6855E', linewidth=3)
-# plt.plot(step, two_no_opt, label='no optimize cx', color='#45A1CF', linewidth=3)
-# plt.plot(step, one_no_opt, label='no optimize u3', color='#45A1CF', linewidth=3)
-# plt.legend(fontsize=30)
-# plt.show()
 # -
-
-# #### Fidelity decrese
-
-# +
-# fid_analysis = fid.FidelityAnalyzer(0.01, np.arange(0, 0.1, 0.01), [2, 3])
-# fids_nopt = []
-# fids_opt = []
-# for step in range(1, 10):
-# #     no optimization
-#     qc_no_opt = composer.CircuitComposer(target_graph, prob_dist, step).qw_circuit(optimization=False)
-#     nqc_no_opt = transpile(qc_no_opt, basis_gates=['cx', 'u3'])
-#     fidelity_nopt = fid_analysis.fidelity_drop(nqc_no_opt)
-#     fids_nopt.append(fidelity_nopt)
-# #     optmized
-#     qc_opt = composer.CircuitComposer(target_graph, prob_dist, step).qw_circuit(optimization=True)
-#     nqc_opt = transpile(qc_opt, basis_gates=['cx', 'u3'])
-#     fidelity_opt = fid_analysis.fidelity_drop(nqc_opt)
-#     fids_opt.append(fidelity_opt)
-# -
-
 
 # ## 2. Multi step of 8 node graph with one partition
 
@@ -822,25 +788,25 @@ for ce, st in tqdm(zip(errors, steps)):
         error_model.add_all_qubit_quantum_error(cx_error, ['cx'])
     # ex1
         opt_qc = [transpile(eight_node(True, step, init_state_eight), basis_gates=['cx', 'u3'], optimization_level=0) for i in range(extime)]
-        errors = get_error(opt_qc, ideal_prob, error_model, 2)
-        ex1_mean.append(np.mean(errors))
+        errors = get_error(opt_qc, ideal_prob, error_model, 3)
+        ex1_mean.append(np.mean(errors))i
         ex1_std.append(np.std(errors))
 
 #     ex2
         opt_qc = [transpile(eight_node(True, step, init_state_eight), basis_gates=['cx', 'u3'], optimization_level=3) for i in range(extime)]
-        errors = get_error(opt_qc, ideal_prob, error_model, 2)
+        errors = get_error(opt_qc, ideal_prob, error_model, 3)
         ex2_mean.append(np.mean(errors))
         ex2_std.append(np.std(errors))
 
 # ex3
         opt_qc = [transpile(eight_node(False, step, init_state_eight), basis_gates=['cx', 'u3'], optimization_level=3)for i in range(extime)]
-        errors = get_error(opt_qc, ideal_prob, error_model, 2)
+        errors = get_error(opt_qc, ideal_prob, error_model, 3)
         ex3_mean.append(np.mean(errors))
         ex3_std.append(np.std(errors))
 
     #     ex4
         nopt_qc = [transpile(eight_node(False, step, init_state_eight), basis_gates=['cx', 'u3'], optimization_level=0) for i in range(extime)]
-        errors = get_error(nopt_qc, ideal_prob, error_model, 2)
+        errors = get_error(nopt_qc, ideal_prob, error_model, 3)
         ex4_mean.append(np.mean(errors))
         ex4_std.append(np.std(errors))
 # -
