@@ -70,6 +70,11 @@ ipython_genutils = "==0.2.0"
 PyYAML = "==5.3"
 Quandl = "==3.5.0"
 jupyter-nbextensions-configurator = "*"
+torch = "*"
+pennylane = "*"
+cirq = "*"
+pennylane-cirq = "*"
+tensorflow = "==2.0.0"
 
 [requires]
 python_version = "3.7"

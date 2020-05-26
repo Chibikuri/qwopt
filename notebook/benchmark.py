@@ -115,11 +115,11 @@ def four_node(opt, step):
             qc.x(cq)
             qc.barrier()
             
-            qc.x(cq[1])    
-            qc.mcry(-pi/2, cq, tq[0], None)
-            qc.mcry(-rotation, cq, tq[1], None)
-            qc.x(cq[1])
-            qc.barrier()
+#             qc.x(cq[1])    
+#             qc.mcry(-pi/2, cq, tq[0], None)
+#             qc.mcry(-rotation, cq, tq[1], None)
+#             qc.x(cq[1])
+#             qc.barrier()
             
             qc.x(cq[0])    
             qc.mcry(-pi/2, cq, tq[0], None)
@@ -127,9 +127,12 @@ def four_node(opt, step):
             qc.x(cq[0])
             qc.barrier()
             
-            qc.mcry(-pi/2, cq, tq[0], None)
-            qc.mcry(-rotation, cq, tq[1], None)
+            qc.cry(-pi/2, cq[0], tq[0])
+            qc.cry(-rotation, cq[0], tq[1])
             qc.barrier()
+#             qc.mcry(-pi/2, cq, tq[0], None)
+#             qc.mcry(-rotation, cq, tq[1], None)
+#             qc.barrier()
             
         # D operation
         qc.x(tq)
@@ -149,8 +152,12 @@ def four_node(opt, step):
             qc.x(cq)
             qc.barrier()
         else:
-            qc.mcry(pi/2, cq, tq[0], None)
-            qc.mcry(rotation, cq, tq[1], None)
+#             previous, and naive imple
+#             qc.mcry(pi/2, cq, tq[0], None)
+#             qc.mcry(rotation, cq, tq[1], None)
+#             qc.barrier()
+            qc.cry(pi/2, cq[0], tq[0])
+            qc.cry(rotation, cq[0], tq[1])
             qc.barrier()
             
             qc.x(cq[0])    
@@ -159,11 +166,11 @@ def four_node(opt, step):
             qc.x(cq[0])
             qc.barrier()
             
-            qc.x(cq[1])    
-            qc.mcry(pi/2, cq, tq[0], None)
-            qc.mcry(rotation, cq, tq[1], None)
-            qc.x(cq[1])
-            qc.barrier()
+#             qc.x(cq[1])    
+#             qc.mcry(pi/2, cq, tq[0], None)
+#             qc.mcry(rotation, cq, tq[1], None)
+#             qc.x(cq[1])
+#             qc.barrier()
             
             qc.x(cq)
             qc.mcry(pi/2, cq, tq[0], None)
@@ -239,6 +246,23 @@ for step in trange(1, 11):
 
 cx = [ex1_cx, ex2_cx, ex3_cx, ex4_cx]
 u3 = [ex1_u3, ex2_u3, ex3_u3, ex4_u3]
+# color = ['#C23685',  '#E38692', '#6BBED5', '#3EBA2B']
+# labels = ['with my optimizations', 'with my and qiskit optimizations', 'with qiskit optimizations', 'without optimizations']
+steps = range(1, 11)
+fig = plt.figure(figsize=(20, 10))
+ax = fig.add_subplot(111)
+sns.set()
+plt.xlabel('the number of steps', fontsize=30)
+plt.xticks([i for i in range(11)])
+plt.ylabel('the number of operations', fontsize=30)
+plt.title('the nuber of operations over steps', fontsize=30)
+plt.tick_params(labelsize=20)
+plt.plot(steps, ex4_cx, color='#3EBA2B', label='# of CX without optimizations', linewidth=3)
+plt.plot(steps, ex4_u3, color='#6BBED5', label='# of single qubit operations without optimizations', linewidth=3)
+plt.legend(fontsize=25)
+
+cx = [ex1_cx, ex2_cx, ex3_cx, ex4_cx]
+u3 = [ex1_u3, ex2_u3, ex3_u3, ex4_u3]
 color = ['#C23685',  '#E38692', '#6BBED5', '#3EBA2B']
 labels = ['with my optimizations', 'with my and qiskit optimizations', 'with qiskit optimizations', 'without optimizations']
 steps = range(1, 11)
@@ -246,9 +270,11 @@ fig = plt.figure(figsize=(20, 10))
 ax = fig.add_subplot(111)
 sns.set()
 plt.xlabel('the number of steps', fontsize=30)
+plt.xticks([i for i in range(11)])
 plt.ylabel('the number of cx', fontsize=30)
 plt.title('the nuber of operations over steps', fontsize=30)
 plt.tick_params(labelsize=20)
+print(list(steps))
 for cs, col, lab in zip(cx, color, labels):
     plt.plot(steps, cs, color=col, label=lab, linewidth=3)
 plt.legend(fontsize=25)
@@ -368,11 +394,11 @@ extime = 10
 
 u3_error = depolarizing_error(0.001, 1)
 qw_step = range(1, 11)
-gate_error = np.arange(0, 0.1, 0.001)
+gate_error = np.arange(0, 0.03, 0.001)
 # errors, steps= np.meshgrid(gate_error, qw_step)
 
 bins = [format(i, '02b') for i in range(2**2)]
-step = 1
+step = 5
 opt_qc = four_node(True, step)
 job = execute(opt_qc, backend=qasm_sim, shots=100000)
 count = job.result().get_counts(opt_qc)
@@ -422,13 +448,13 @@ for cxerr in tqdm(gate_error):
 # +
 fig = plt.figure(figsize=(20, 10))
 
-plt.errorbar(gate_error, ex1_mean, yerr=ex1_std, label='With my optimizations')
-plt.errorbar(gate_error, ex2_mean, yerr=ex2_std, label='With my and qiskit optimizations')
-plt.errorbar(gate_error, ex3_mean, yerr=ex3_std, label='With qiskit optimizations')
+# plt.errorbar(gate_error, ex1_mean, yerr=ex1_std, label='With my optimizations')
+# # plt.errorbar(gate_error, ex2_mean, yerr=ex2_std, label='With my and qiskit optimizations')
+# # plt.errorbar(gate_error, ex3_mean, yerr=ex3_std, label='With qiskit optimizations')
 plt.errorbar(gate_error, ex4_mean, yerr=ex4_std, label='Without optimizations')
-plt.title('error investigation of 3step Quantum Walk', fontsize=30)
+plt.title('error investigation of %dstep Quantum Walk'%step, fontsize=30)
 plt.xlabel('cx error rate', fontsize=30)
-plt.ylabel('KL divergence')
+plt.ylabel('KL divergence', fontsize=30)
 plt.tick_params(labelsize=20)
 plt.legend(fontsize=20)
 plt.show()
@@ -501,20 +527,20 @@ res3 = np.array(ex3_mean).reshape(10, 10)
 res4 = np.array(ex4_mean).reshape(10, 10)
 
 # +
-fig = plt.figure(figsize=(20, 10))
-ax = Axes3D(fig)
+# fig = plt.figure(figsize=(20, 10))
+# ax = Axes3D(fig)
 
-ax.plot_wireframe(errors, steps, res1, color='#E6855E', linewidth=2, label='With my optimization')
-ax.plot_wireframe(errors, steps, res2, color='#F9DB57', linewidth=2, label='With my and qiskit optimizations')
-ax.plot_wireframe(errors, steps, res3, color='#3DB680', linewidth=2, label='With qiskit optimizations')
-ax.plot_wireframe(errors, steps, res4, color='#6A8CC7', linewidth=2, label='Without optimizations')
+# ax.plot_wireframe(errors, steps, res1, color='#E6855E', linewidth=2, label='With my optimization')
+# ax.plot_wireframe(errors, steps, res2, color='#F9DB57', linewidth=2, label='With my and qiskit optimizations')
+# ax.plot_wireframe(errors, steps, res3, color='#3DB680', linewidth=2, label='With qiskit optimizations')
+# ax.plot_wireframe(errors, steps, res4, color='#6A8CC7', linewidth=2, label='Without optimizations')
 
-ax.set_xlabel('Cx error rate', labelpad=30, fontsize=30)
-ax.set_ylabel('The number of steps', labelpad=30, fontsize=30)
-ax.set_zlabel('Error', labelpad=30, fontsize=30)
-plt.tick_params(labelsize=20)
-plt.legend(fontsize=20)
-plt.show()
+# ax.set_xlabel('Cx error rate', labelpad=30, fontsize=30)
+# ax.set_ylabel('The number of steps', labelpad=30, fontsize=30)
+# ax.set_zlabel('Error', labelpad=30, fontsize=30)
+# plt.tick_params(labelsize=20)
+# plt.legend(fontsize=20)
+# plt.show()
 # -
 
 # ## 2. Multi step of 8 node graph with one partition
@@ -758,6 +784,7 @@ def eight_node(opt, step, initial, hardopt=False):
 # -
 
 # circuit verifications
+qasm_sim = Aer.get_backend("qasm_simulator")
 for step in range(1, 11):
     opt_qc1 = transpile(eight_node(True, step, init_state_eight), basis_gates=['cx', 'u3'], optimization_level=0)
     opt_qc2 = transpile(eight_node(True, step, init_state_eight), basis_gates=['cx', 'u3'], optimization_level=3)
@@ -816,6 +843,20 @@ for step in trange(1, 11):
     ex4_u3.append(nu3)
 # -
 
+steps = range(1, 11)
+fig = plt.figure(figsize=(20, 10))
+ax = fig.add_subplot(111)
+sns.set()
+plt.xlabel('the number of steps', fontsize=30)
+plt.ylabel('the number of cx', fontsize=30)
+plt.title('the nuber of operations over steps', fontsize=30)
+plt.tick_params(labelsize=20)
+plt.xticks([i for i in range(11)])
+# for cs, col, lab in zip(cx, color, labels):
+plt.plot(steps, ex4_cx, color= '#3EBA2B', label= '# of CX without optimizations', linewidth=3)
+plt.plot(steps, ex4_u3, color= '#6BBED5', label= '# of single qubit operations without optimizations', linewidth=3)
+plt.legend(fontsize=25)
+
 cx = [ex1_cx, ex2_cx, ex3_cx, ex4_cx]
 u3 = [ex1_u3, ex2_u3, ex3_u3, ex4_u3]
 color = ['#C23685',  '#E38692', '#6BBED5', '#3EBA2B']
@@ -844,48 +885,70 @@ ex3_std = []
 
 ex4_mean = []
 ex4_std = []
-extime = 1
+extime = 100
 
 u3_error = depolarizing_error(0, 1)
 qw_step = range(1, 11)
-gate_error = np.arange(0, 0.1, 0.01)
+gate_error = np.arange(0, 0.03, 0.001)
 # errors, steps= np.meshgrid(gate_error, qw_step)
 
 bins = [format(i, '03b') for i in range(2**3)]
-step = 1
+step = 3
 opt_qc = eight_node(True, step, init_state_eight)
 job = execute(opt_qc, backend=qasm_sim, shots=100000)
 count = job.result().get_counts(opt_qc)
 ideal_prob = [count.get(i, 0)/100000 for i in bins]
-for ce in gate_error:
+for cxerr in tqdm(gate_error, desc="error"):
 # noise model
     error_model = NoiseModel()
     cx_error = depolarizing_error(cxerr, 2)
     error_model.add_all_qubit_quantum_error(u3_error, ['u3', 'u2'])
     error_model.add_all_qubit_quantum_error(cx_error, ['cx'])
 # ex1
-    opt_qc = [transpile(eight_node(True, step, init_state_eight), basis_gates=['cx', 'u3'], optimization_level=0) for i in range(extime)]
-    errors = get_error(opt_qc, ideal_prob, error_model, 3)
-    ex1_mean.append(np.mean(errors))i
-    ex1_std.append(np.std(errors))
+#     opt_qc = [transpile(eight_node(True, step, init_state_eight), basis_gates=['cx', 'u3'], optimization_level=0) for i in range(extime)]
+#     errors = []
+#     for eqc in opt_qc:
+#         errors.append(get_error(eqc, ideal_prob, error_model, 3))
+#     ex1_mean.append(np.mean(errors))
+#     ex1_std.append(np.std(errors))
 
-#     ex2
-    opt_qc = [transpile(eight_node(True, step, init_state_eight), basis_gates=['cx', 'u3'], optimization_level=3) for i in range(extime)]
-    errors = get_error(opt_qc, ideal_prob, error_model, 3)
-    ex2_mean.append(np.mean(errors))
-    ex2_std.append(np.std(errors))
+# #     ex2
+#     errors = []
+#     opt_qc = [transpile(eight_node(True, step, init_state_eight), basis_gates=['cx', 'u3'], optimization_level=3) for i in range(extime)]
+#     for eqc in opt_qc:
+#         errors.append(get_error(eqc, ideal_prob, error_model, 3))
+#     ex2_mean.append(np.mean(errors))
+#     ex2_std.append(np.std(errors))
 
-# ex3
-    opt_qc = [transpile(eight_node(False, step, init_state_eight), basis_gates=['cx', 'u3'], optimization_level=3)for i in range(extime)]
-    errors = get_error(opt_qc, ideal_prob, error_model, 3)
-    ex3_mean.append(np.mean(errors))
-    ex3_std.append(np.std(errors))
+# # ex3
+#     errors = []
+#     opt_qc = [transpile(eight_node(False, step, init_state_eight), basis_gates=['cx', 'u3'], optimization_level=3)for i in range(extime)]
+#     for eqc in opt_qc:
+#         errors.append(get_error(eqc, ideal_prob, error_model, 3))
+#     ex3_mean.append(np.mean(errors))
+#     ex3_std.append(np.std(errors))
 
 #     ex4
+    errors = []
     nopt_qc = [transpile(eight_node(False, step, init_state_eight), basis_gates=['cx', 'u3'], optimization_level=0) for i in range(extime)]
-    errors = get_error(nopt_qc, ideal_prob, error_model, 3)
+    for eqc in nopt_qc:
+        errors.append(get_error(eqc, ideal_prob, error_model, 3))
     ex4_mean.append(np.mean(errors))
     ex4_std.append(np.std(errors))
+# -
+
+fig = plt.figure(figsize=(20, 10))
+sns.set()
+# plt.errorbar(gate_error, ex1_mean, yerr=ex1_std, label='With my optimizations')
+# # plt.errorbar(gate_error, ex2_mean, yerr=ex2_std, label='With my and qiskit optimizations')
+# # plt.errorbar(gate_error, ex3_mean, yerr=ex3_std, label='With qiskit optimizations')
+plt.errorbar(gate_error, ex4_mean, yerr=ex4_std, label='Without optimizations')
+plt.title('error investigation of %dstep Quantum Walk'%step, fontsize=30)
+plt.xlabel('cx error rate', fontsize=30)
+plt.ylabel('KL divergence', fontsize=30)
+plt.tick_params(labelsize=20)
+plt.legend(fontsize=20)
+plt.show()
 
 # +
 # 1step
@@ -968,6 +1031,7 @@ def mch(qc, controls, target, anc, tganc):
     return qc
 
 
+qasm_sim = Aer.get_backend("qasm_simulator")
 q = QuantumRegister(6)
 anc = QuantumRegister(3)
 tganc = QuantumRegister(1)
@@ -1324,6 +1388,24 @@ fig = plt.figure(figsize=(20, 10))
 ax = fig.add_subplot(111)
 sns.set()
 plt.xlabel('the number of steps', fontsize=30)
+plt.yticks(range(0, 9000, 500))
+plt.xticks(range(0, 11, 1))
+plt.ylabel('the number of cx', fontsize=30)
+plt.title('the nuber of operations over steps', fontsize=30)
+plt.tick_params(labelsize=20)
+plt.plot(steps, ex4_cx, color= '#3EBA2B', label="# of CX paper circuit", linewidth=3)
+plt.plot(steps, ex4_u3, color= '#6BBED5', label="# of single qubit gates of paper circuit", linewidth=3)
+plt.legend(fontsize=25)
+
+cx = [ex1_cx, ex4_cx]
+u3 = [ex1_u3, ex4_u3]
+color = ['#C23685', '#6BBED5', '#3EBA2B']
+labels = ['with my optimizations', 'related works[6]']
+steps = range(1, 11)
+fig = plt.figure(figsize=(20, 10))
+ax = fig.add_subplot(111)
+sns.set()
+plt.xlabel('the number of steps', fontsize=30)
 plt.yticks(range(0, 4600, 200))
 plt.xticks(range(0, 11, 1))
 plt.ylabel('the number of cx', fontsize=30)
@@ -1337,24 +1419,17 @@ plt.legend(fontsize=25)
 ex1_mean = []
 ex1_std = []
 
-ex2_mean = []
-ex2_std = []
-
-ex3_mean = []
-ex3_std = []
-
 ex4_mean = []
 ex4_std = []
 extime = 10
 
 u3_error = depolarizing_error(0, 1)
-qw_step = range(1, 11)
-gate_error = np.arange(0, 0.1, 0.001)
+gate_error = np.arange(0, 0.03, 0.001)
 # errors, steps= np.meshgrid(gate_error, qw_step)
 
 bins = [format(i, '03b') for i in range(2**3)]
-step = 3
-opt_qc = eight_node_multi(True, step, init_state_eight)
+step = 5
+opt_qc = eight_node_multi(False, step, init_state_eight)
 job = execute(opt_qc, backend=qasm_sim, shots=100000)
 count = job.result().get_counts(opt_qc)
 ideal_prob = [count.get(i, 0)/100000 for i in bins]
@@ -1374,24 +1449,6 @@ for cxerr in tqdm(gate_error):
     ex1_mean.append(np.mean(errors))
     ex1_std.append(np.std(errors))
 
-#     ex2
-    opt_qc = transpile(eight_node_multi(True, step, init_state_eight), basis_gates=['cx', 'u3'], optimization_level=3)
-    errors = []
-    for i in range(extime):
-        error = get_error(opt_qc, ideal_prob, error_model, 3)
-        errors.append(error)
-    ex2_mean.append(np.mean(errors))
-    ex2_std.append(np.std(errors))
-
-# ex3
-    opt_qc = transpile(eight_node_multi(False, step, init_state_eight), basis_gates=['cx', 'u3'], optimization_level=3)
-    errors = []
-    for i in range(extime):
-        error = get_error(opt_qc, ideal_prob, error_model, 3)
-        errors.append(error)
-    ex3_mean.append(np.mean(errors))
-    ex3_std.append(np.std(errors))
-
 #     ex4
     nopt_qc = transpile(eight_node_multi(False, step, init_state_eight), basis_gates=['cx', 'u3'], optimization_level=0)
     for i in range(extime):
@@ -1399,21 +1456,18 @@ for cxerr in tqdm(gate_error):
         errors.append(error)
     ex4_mean.append(np.mean(errors))
     ex4_std.append(np.std(errors))
+# -
 
-# +
 fig = plt.figure(figsize=(20, 10))
-
-plt.errorbar(gate_error, ex1_mean, yerr=ex1_std, label='With my optimizations')
-plt.errorbar(gate_error, ex2_mean, yerr=ex2_std, label='With my and qiskit optimizations')
-plt.errorbar(gate_error, ex3_mean, yerr=ex3_std, label='With qiskit optimizations')
+sns.set()
+# plt.errorbar(gate_error, ex1_mean, yerr=ex1_std, label='With my optimizations')
 plt.errorbar(gate_error, ex4_mean, yerr=ex4_std, label='Without optimizations')
-plt.title('error investigation of 3step Quantum Walk', fontsize=30)
+plt.title('error investigation of %dstep Quantum Walk'%step, fontsize=30)
 plt.xlabel('cx error rate', fontsize=30)
-plt.ylabel('KL divergence')
+plt.ylabel('KL divergence', fontsize=30)
 plt.tick_params(labelsize=20)
 plt.legend(fontsize=20)
 plt.show()
-# -
 
 # Play ground
 

@@ -148,7 +148,7 @@ target_graph = np.array([[0, 1, 0, 0, 0, 0, 0, 1],
 Gs = nx.from_numpy_matrix(target_graph)
 G = nx.MultiDiGraph()
 # pos = [(1, 1), (2, 2), (3, 3), (1, 5), (2, 2), (6, 2), (6, 6), (2, 6)]
-pos = [(0, 0), (1, 1), (2, 2), (1000, 3), (0, 4), (-1, 3), (-2, 2), (-1, 1)]
+pos = [(0, 0), (1, 1), (2, 2), (1, 3), (0, 4), (-1, 3), (-2, 2), (-1, 1)]
 G.add_edges_from(Gs.edges())
 # pos = nx.spring_layout(G)
 plt.figure(figsize=(8,8))
